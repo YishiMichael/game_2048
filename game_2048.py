@@ -11,14 +11,14 @@ root = tk.Tk()
 class Main(object):
     DEFAULT_SHAPE = (4, 4)
     DEFAULT_BASE = 2
-    BOX_SIDE_LENGTH = 50
+    VIEW_DIM = 2
+    CELL_SIDE_LENGTH = 50
     LOWEST_LEVEL_BUFF = 10
     BUFF_GAP = 20
-    FRAME_WIDTH = 40
     FONT_SIZE = 12
     BACKGROUND_COLOR = "#776e65"
     TILE_COLOR_MAP = [
-        "#bbada0",  # empty box
+        "#bbada0",  # empty cell
         "#eee4da",
         "#ede0c8",
         "#f2b179",
@@ -32,7 +32,7 @@ class Main(object):
         "#edc22e",
     ]
     TEXT_COLOR = [
-        "#ffffff",  # empty box
+        "#ffffff",  # empty cell
         "#f3d774",
         "#f3d774",
         "#f9f6f2",
@@ -41,17 +41,22 @@ class Main(object):
         family="Helvetica", size=FONT_SIZE, weight=tkFont.BOLD
     )
 
-    def __init__(self, root, shape=None, base=None):
+    def __init__(self, root, shape=None, base=None, view_dim=None):
         self.root = root
         self.shape = np.array(shape or self.DEFAULT_SHAPE)
         self.base = base or self.DEFAULT_BASE
+        self.view_dim = view_dim or self.VIEW_DIM
         self.dim = self.shape.size
         assert self.dim <= 6
         self.size = np.prod(self.shape)
         self.view_map = np.zeros(self.size, dtype=np.int8)
+        assert self.view_dim <= 3
         #self.buttonmap = []
         #self.style = None
-        self.x_axis_units, self.y_axis_units = self.get_axis_units()
+        self.frame_width = np.ceil(
+            self.dim / self.view_dim - 1
+        ) * self.BUFF_GAP + self.LOWEST_LEVEL_BUFF
+        self.axes_units = self.get_axes_units()
         self.canvas = self.set_canvas()
         self.tiles = [0] * self.size
         self.texts = [0] * self.size
@@ -65,42 +70,35 @@ class Main(object):
     def unravel(self, index):
         return np.unravel_index(index, self.shape)
 
-    def get_axis_units(self):
-        # indices = (3, 6, 7, 2, 5, 4)
-        # shape = (11, 12, 13, 14, 15, 16)
-        # -> [
-        #     3 * (11 * (13 * (50 + 10) + 30) + 50) + 7 * (13 * (50 + 10) + 30) + 5 * (50 + 10) + 30,
-        #     6 * (12 * (14 * (50 + 10) + 30) + 50) + 2 * (14 * (50 + 10) + 30) + 4 * (50 + 10) + 30
-        # ] = [32880, 64950]
-        # indices = (3, 6, 7, 2, 5)
-        # shape = (11, 12, 13, 14, 15)
-        # -> [
-        #     3 * (11 * (13 * (50 + 10) + 30) + 50) + 7 * (13 * (50 + 10) + 30) + 5 * (50 + 10) + 30,
-        #     6 * (12 * (50 + 10) + 30) + 2 * (50 + 10) + 30
-        # ] = [32880, 4650]
-        # np.ravel_multi_index((3, 7, 5), (11, 13, 15))
-        # -> 3 * (13 * 15) + 7 * 15 + 5
+    def get_axes_units(self):
         def units_generator(shape):
-            current_unit = self.BOX_SIDE_LENGTH + self.LOWEST_LEVEL_BUFF
+            current_unit = self.CELL_SIDE_LENGTH + self.LOWEST_LEVEL_BUFF
             yield current_unit
             for dimension_size in shape[:-1]:
                 current_unit *= dimension_size
                 current_unit += self.BUFF_GAP
                 yield current_unit
-        x_axis_units = np.fromiter(
-            units_generator(self.shape[::2][::-1]), dtype=np.float64
-        )[::-1]
-        y_axis_units = np.fromiter(
-            units_generator(self.shape[1::2][::-1]), dtype=np.float64
-        )[::-1]
-        return x_axis_units, y_axis_units
 
-    def get_box_anchor_point(self, index):
+        return [
+            np.fromiter(
+                units_generator(self.shape[view_axis::self.view_dim]),
+                dtype=np.float64
+            )
+            for view_axis in range(self.view_dim)
+        ]
+
+    def get_cell_anchor_point(self, index):
         indices = self.unravel(index)
         return np.array([
-            np.sum(indices[::2] * self.x_axis_units),
-            np.sum(indices[1::2] * self.y_axis_units)
-        ]) + self.FRAME_WIDTH
+            np.sum(
+                indices[view_axis::self.view_dim] * self.axes_units[view_axis]
+            )
+            for view_axis in range(self.view_dim)
+        ]) + self.frame_width
+
+    def get_full_grid_size(self):
+        return self.get_cell_anchor_point(self.size - 1) \
+            + self.CELL_SIDE_LENGTH + self.frame_width
 
     def safe_fetch(self, list_obj, val):
         try:
@@ -110,8 +108,7 @@ class Main(object):
 
     def set_canvas(self):
         self.root.title("Game of 2048")
-        full_size = self.get_box_anchor_point(self.size - 1) \
-            + self.BOX_SIDE_LENGTH + self.FRAME_WIDTH
+        full_size = self.get_full_grid_size()
         self.root.geometry("{0}x{1}".format(
             int(full_size[0]), int(full_size[1])
         ))
@@ -123,11 +120,11 @@ class Main(object):
         canvas.pack()
         return canvas
 
-    def draw_background_box(self, index):
-        box_anchor = self.get_box_anchor_point(index)
-        x0, y0 = box_anchor
-        x1, y1 = box_anchor + self.BOX_SIDE_LENGTH
-        xc, yc = box_anchor + self.BOX_SIDE_LENGTH / 2
+    def draw_background_cell(self, index):
+        cell_anchor = self.get_cell_anchor_point(index)
+        x0, y0 = cell_anchor
+        x1, y1 = cell_anchor + self.CELL_SIDE_LENGTH
+        xc, yc = cell_anchor + self.CELL_SIDE_LENGTH / 2
         tile_color = self.safe_fetch(self.TILE_COLOR_MAP, 0)
         text_color = self.safe_fetch(self.TEXT_COLOR, 0)
         self.canvas.create_rectangle(
@@ -137,10 +134,10 @@ class Main(object):
     def draw_tile(self, index):
         val = self.view_map[index]
         assert val
-        box_anchor = self.get_box_anchor_point(index)
-        x0, y0 = box_anchor
-        x1, y1 = box_anchor + self.BOX_SIDE_LENGTH
-        xc, yc = box_anchor + self.BOX_SIDE_LENGTH / 2
+        cell_anchor = self.get_cell_anchor_point(index)
+        x0, y0 = cell_anchor
+        x1, y1 = cell_anchor + self.CELL_SIDE_LENGTH
+        xc, yc = cell_anchor + self.CELL_SIDE_LENGTH / 2
         tile_color = self.safe_fetch(self.TILE_COLOR_MAP, val)
         text_color = self.safe_fetch(self.TEXT_COLOR, val)
         self.tiles[index] = self.canvas.create_rectangle(
@@ -160,7 +157,7 @@ class Main(object):
     def appear_tile(self, index):
         self.draw_tile(index)
 
-    def move_tiles(self, link_data):
+    def move_tiles(self, link_data):  # TODO, make animation
         for from_index in link_data.from_index:
             self.delete_tile(from_index)
         for to_index in set(link_data.to_index):
@@ -168,7 +165,8 @@ class Main(object):
 
     def shift(self, axis, opposite):
         nvm, link_data, score = logic.push_tiles_using_numpy(
-            self.view_map.reshape(self.shape), self.base, axis=axis, opposite=opposite
+            self.view_map.reshape(self.shape),
+            self.base, axis=axis, opposite=opposite
         )
         self.view_map = np.fromiter(nvm.flat, np.int8)
         return link_data
@@ -182,8 +180,9 @@ class Main(object):
     def action(self, event):
         char = event.char
         try:
-            axis = "lkhgdsjiftaw".index(char) % 6  # TODO, shape == (2, 2, 2, 2, 2, 2)
-        except ValueError:
+            assert len(char) == 1
+            axis = "jiftawlkhgds".index(char) % 6  # TODO, view_dim != 2
+        except (AssertionError, ValueError):
             return False
         if axis >= self.dim:
             return False
@@ -200,7 +199,7 @@ class Main(object):
 
     def start_game(self):
         for index in range(self.size):
-            self.draw_background_box(index)
+            self.draw_background_cell(index)
         init_location = np.random.choice(
             np.arange(self.size), 2, replace=False ## init
         )

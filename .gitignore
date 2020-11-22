@@ -1,3 +1,4 @@
 *.pyc
 
+html/node_modules/*
 note.txt
