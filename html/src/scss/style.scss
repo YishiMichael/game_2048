@@ -1,4 +1,213 @@
-@import "../scripts/logic.ts";
+@import "fonts/clear-sans.css";
 
-$primary-color: #fe4e5e;
-$padding: 124px;
+$game_container_background: #bbada0;
+$tile_color: #eee4da;
+$tile_gold_color: #edc22e;
+$tile_gold_glow_color: lighten($tile_gold_color, 15%);
+$text_color: #776E65;
+$bright_text_color: #f9f6f2;
+
+$tile_boarder_radius: 8%;
+$tile_margin: 10%;
+
+$transition_speed: 100ms;
+
+
+// Mixins
+
+@mixin transition($args...) {
+  -webkit-transition: $args;
+  -moz-transition: $args;
+  transition: $args;
+}
+
+//@mixin transition_property($args...) {
+//  -webkit-transition-property: $args;
+//  -moz-transition-property: $args;
+//  transition-property: $args;
+//}
+
+@mixin transform($args...) {
+    -webkit-transform: $args;
+    -moz-transform: $args;
+    -ms-transform: $args;
+    transform: $args;
+}
+
+@mixin animation($args...) {
+    -webkit-animation: $args;
+    -moz-animation: $args;
+    animation: $args;
+}
+
+@mixin animation_fill_mode($args...) {
+    -webkit-animation-fill-mode: $args;
+    -moz-animation-fill-mode: $args;
+    animation-fill-mode: $args;
+}
+
+@mixin keyframes($animation_name) {
+    @-webkit-keyframes $animation_name {
+        @content;
+    }
+    @-moz-keyframes $animation_name {
+        @content;
+    }
+    @keyframes $animation_name {
+        @content;
+    }
+}
+
+
+// Basic styles
+
+html, body {
+    margin: 0;
+    padding: 0;
+
+    background: #faf8ef;
+    color: $text_color;
+    font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
+    font-size: 18px;
+}
+
+body {
+  margin: 80px 0;
+}
+
+.container {
+    display: flex;
+    justify-content: center;
+    width: 500px;
+    margin: 0 auto;
+}
+
+.game_container {
+    display: inline-block;
+    position: relative;
+    z-index: 1;
+    user-select: none;
+}
+
+.grid_container {
+    display: inline-block;
+    position: absolute;
+    z-index: 2;
+    background: $game_container_background;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+}
+
+.grid_cell {
+    display: inline-block;
+    position: absolute;
+    z-index: 3;
+    background: rgba($tile_color, 0.35);
+    border-radius: $tile_boarder_radius;
+}
+
+.tile_container {
+    display: inline-block;
+    position: absolute;
+    z-index: 4;
+    width: 100%;
+    height: 100%;
+}
+
+.tile {
+    display: inline-block;
+    position: absolute;
+    z-index: 5;
+    border-radius: $tile_boarder_radius;
+
+
+    .tile_inner {
+        display: flex;
+        z-index: 6;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin: $tile_margin;
+        width: 100% - $tile_margin * 2;
+        height: 100% - $tile_margin * 2;
+    }
+
+    @include transition($transition_speed ease-in-out);
+    -webkit-transition-property: -webkit-transform;
+    -moz-transition-property: -moz-transform;
+    transition-property: transform;
+
+    $limit: 14;
+    $background_colors:
+        #eee4da,
+        #ede0c8,
+        #f2b179,
+        #f59563,
+        #f67c5f,
+        #f65e3b,
+        #edcf72,
+        #edcc61,
+        #edc850,
+        #edc53f,
+        #edc22e,
+        #ebb914,
+        #d3a612,
+        #bc9410;
+
+    // Build tile colors
+    @for $value from 1 through $limit {
+        &.tile_value_#{$value} {
+            @if ($value >= 3) {
+                color: $bright_text_color;
+            }
+            // Set background
+            background: nth($background_colors, $value);
+    
+            // Add glow
+            $glow_opacity: ($value - 4) / 12.6;
+            $inset_glow_opacity: min($glow_opacity, 1.0) / 3;
+            @if ($value > 7) {
+                box-shadow: 0 0 30px 10px rgba($tile_gold_glow_color, $glow_opacity),
+                    inset 0 0 0 1px rgba(white, $inset_glow_opacity);
+            }
+        }
+    }
+}
+
+
+// Animations
+
+@include keyframes(appear) {
+    0% {
+        opacity: 0;
+        @include transform(scale(0));
+    }
+    100% {
+        opacity: 1;
+        @include transform(scale(1));
+    }
+}
+
+.tile_new .tile_inner {
+    @include animation(appear 200ms ease $transition_speed);
+    @include animation_fill_mode(backwards);
+}
+
+@include keyframes(pop) {
+    0% {
+        @include transform(scale(0));
+    }
+    50% {
+        @include transform(scale(1.2));
+    }
+    100% {
+        @include transform(scale(1));
+    }
+}
+
+.tile_merged .tile_inner {
+    z-index: 7;
+    @include animation(pop 200ms ease $transition_speed);
+    @include animation_fill_mode(backwards);
+}
