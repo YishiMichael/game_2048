@@ -1,7 +1,11 @@
 @import "fonts/clear-sans.css";
-html, body {
+* {
   margin: 0;
   padding: 0;
+  user-select: none;
+}
+
+html, body {
   background: #faf8ef;
   color: #776E65;
   font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
@@ -13,17 +17,80 @@ body {
 }
 
 .container {
-  display: flex;
-  justify-content: center;
-  width: 500px;
+  display: block;
   margin: 0 auto;
+}
+
+.heading:after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+h1.title {
+  display: block;
+  float: left;
+  margin: 0;
+  font-weight: bold;
+  font-size: 0.7em;
+}
+
+@keyframes move_up {
+  0% {
+    top: 0;
+    opacity: 1;
+  }
+  100% {
+    top: -2em;
+    opacity: 0;
+  }
+}
+.score_container {
+  display: flex;
+  position: relative;
+  float: right;
+  justify-content: center;
+  font-weight: bold;
+  background: #bbada0;
+  color: #f9f6f2;
+  padding: 0.6em 0.7em;
+  font-size: 0.3em;
+  height: 1em;
+  line-height: 1.8em;
+  border-radius: 0.1em;
+  margin-bottom: 1.2em;
+}
+.score_container:after {
+  position: absolute;
+  text-align: center;
+  text-transform: uppercase;
+  content: "Score";
+  color: #eee4da;
+  width: 100%;
+  top: 0.6em;
+  left: 0;
+  font-size: 0.5em;
+  line-height: 1em;
+}
+.score_container .score_addition {
+  position: absolute;
+  color: red;
+  font-size: 1em;
+  line-height: 3em;
+  font-weight: bold;
+  color: rgba(119, 110, 101, 0.9);
+  -webkit-animation: move_up 600ms ease-in;
+  -moz-animation: move_up 600ms ease-in;
+  animation: move_up 600ms ease-in;
+  -webkit-animation-fill-mode: both;
+  -moz-animation-fill-mode: both;
+  animation-fill-mode: both;
 }
 
 .game_container {
   display: inline-block;
   position: relative;
   z-index: 1;
-  user-select: none;
 }
 
 .grid_container {
@@ -31,9 +98,6 @@ body {
   position: absolute;
   z-index: 2;
   background: #bbada0;
-  width: 100%;
-  height: 100%;
-  border-radius: 10px;
 }
 
 .grid_cell {
@@ -41,22 +105,23 @@ body {
   position: absolute;
   z-index: 3;
   background: rgba(238, 228, 218, 0.35);
-  border-radius: 8%;
+  width: 1em;
+  height: 1em;
+  border-radius: 0.08em;
 }
 
 .tile_container {
   display: inline-block;
   position: absolute;
   z-index: 4;
-  width: 100%;
-  height: 100%;
 }
 
 .tile {
   display: inline-block;
   position: absolute;
   z-index: 5;
-  border-radius: 8%;
+  width: 1em;
+  height: 1em;
   -webkit-transition: 100ms ease-in-out;
   -moz-transition: 100ms ease-in-out;
   transition: 100ms ease-in-out;
@@ -70,105 +135,73 @@ body {
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  margin: 10%;
-  width: 80%;
-  height: 80%;
+  width: 1em;
+  height: 1em;
+  border-radius: 0.08em;
 }
-.tile.tile_value_1 {
+.tile.tile_val_1 .tile_inner {
   background: #eee4da;
 }
-.tile.tile_value_2 {
+.tile.tile_val_2 .tile_inner {
   background: #ede0c8;
 }
-.tile.tile_value_3 {
+.tile.tile_val_3 .tile_inner {
   color: #f9f6f2;
   background: #f2b179;
 }
-.tile.tile_value_4 {
+.tile.tile_val_4 .tile_inner {
   color: #f9f6f2;
   background: #f59563;
 }
-.tile.tile_value_5 {
+.tile.tile_val_5 .tile_inner {
   color: #f9f6f2;
   background: #f67c5f;
 }
-.tile.tile_value_6 {
+.tile.tile_val_6 .tile_inner {
   color: #f9f6f2;
   background: #f65e3b;
 }
-.tile.tile_value_7 {
+.tile.tile_val_7 .tile_inner {
   color: #f9f6f2;
   background: #edcf72;
 }
-.tile.tile_value_8 {
+.tile.tile_val_8 .tile_inner {
   color: #f9f6f2;
   background: #edcc61;
-  box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.3174603175), inset 0 0 0 1px rgba(255, 255, 255, 0.1058201058);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.3174603175), inset 0 0 0 0.01em rgba(255, 255, 255, 0.1058201058);
 }
-.tile.tile_value_9 {
+.tile.tile_val_9 .tile_inner {
   color: #f9f6f2;
   background: #edc850;
-  box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.3968253968), inset 0 0 0 1px rgba(255, 255, 255, 0.1322751323);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.3968253968), inset 0 0 0 0.01em rgba(255, 255, 255, 0.1322751323);
 }
-.tile.tile_value_10 {
+.tile.tile_val_10 .tile_inner {
   color: #f9f6f2;
   background: #edc53f;
-  box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.4761904762), inset 0 0 0 1px rgba(255, 255, 255, 0.1587301587);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.4761904762), inset 0 0 0 0.01em rgba(255, 255, 255, 0.1587301587);
 }
-.tile.tile_value_11 {
+.tile.tile_val_11 .tile_inner {
   color: #f9f6f2;
   background: #edc22e;
-  box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.5555555556), inset 0 0 0 1px rgba(255, 255, 255, 0.1851851852);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.5555555556), inset 0 0 0 0.01em rgba(255, 255, 255, 0.1851851852);
 }
-.tile.tile_value_12 {
+.tile.tile_val_12 .tile_inner {
   color: #f9f6f2;
   background: #ebb914;
-  box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.6349206349), inset 0 0 0 1px rgba(255, 255, 255, 0.2116402116);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.6349206349), inset 0 0 0 0.01em rgba(255, 255, 255, 0.2116402116);
 }
-.tile.tile_value_13 {
+.tile.tile_val_13 .tile_inner {
   color: #f9f6f2;
   background: #d3a612;
-  box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.7142857143), inset 0 0 0 1px rgba(255, 255, 255, 0.2380952381);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.7142857143), inset 0 0 0 0.01em rgba(255, 255, 255, 0.2380952381);
 }
-.tile.tile_value_14 {
+.tile.tile_val_14 .tile_inner {
   color: #f9f6f2;
   background: #bc9410;
-  box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.7936507937), inset 0 0 0 1px rgba(255, 255, 255, 0.2645502646);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.7936507937), inset 0 0 0 0.01em rgba(255, 255, 255, 0.2645502646);
 }
 
-@-webkit-keyframes $animation_name {
-  0% {
-    opacity: 0;
-    -webkit-transform: scale(0);
-    -moz-transform: scale(0);
-    -ms-transform: scale(0);
-    transform: scale(0);
-  }
-  100% {
-    opacity: 1;
-    -webkit-transform: scale(1);
-    -moz-transform: scale(1);
-    -ms-transform: scale(1);
-    transform: scale(1);
-  }
-}
-@-moz-keyframes $animation_name {
-  0% {
-    opacity: 0;
-    -webkit-transform: scale(0);
-    -moz-transform: scale(0);
-    -ms-transform: scale(0);
-    transform: scale(0);
-  }
-  100% {
-    opacity: 1;
-    -webkit-transform: scale(1);
-    -moz-transform: scale(1);
-    -ms-transform: scale(1);
-    transform: scale(1);
-  }
-}
-@keyframes $animation_name {
+@keyframes appear {
   0% {
     opacity: 0;
     -webkit-transform: scale(0);
@@ -193,47 +226,7 @@ body {
   animation-fill-mode: backwards;
 }
 
-@-webkit-keyframes $animation_name {
-  0% {
-    -webkit-transform: scale(0);
-    -moz-transform: scale(0);
-    -ms-transform: scale(0);
-    transform: scale(0);
-  }
-  50% {
-    -webkit-transform: scale(1.2);
-    -moz-transform: scale(1.2);
-    -ms-transform: scale(1.2);
-    transform: scale(1.2);
-  }
-  100% {
-    -webkit-transform: scale(1);
-    -moz-transform: scale(1);
-    -ms-transform: scale(1);
-    transform: scale(1);
-  }
-}
-@-moz-keyframes $animation_name {
-  0% {
-    -webkit-transform: scale(0);
-    -moz-transform: scale(0);
-    -ms-transform: scale(0);
-    transform: scale(0);
-  }
-  50% {
-    -webkit-transform: scale(1.2);
-    -moz-transform: scale(1.2);
-    -ms-transform: scale(1.2);
-    transform: scale(1.2);
-  }
-  100% {
-    -webkit-transform: scale(1);
-    -moz-transform: scale(1);
-    -ms-transform: scale(1);
-    transform: scale(1);
-  }
-}
-@keyframes $animation_name {
+@keyframes pop {
   0% {
     -webkit-transform: scale(0);
     -moz-transform: scale(0);
@@ -261,6 +254,57 @@ body {
   -webkit-animation-fill-mode: backwards;
   -moz-animation-fill-mode: backwards;
   animation-fill-mode: backwards;
+}
+
+@keyframes fade_in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+.game_message {
+  display: none;
+  position: absolute;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  z-index: 8;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(238, 228, 218, 0.73);
+  font-weight: bold;
+  font-size: 60%;
+  -webkit-animation: fade_in 800ms ease 1200ms;
+  -moz-animation: fade_in 800ms ease 1200ms;
+  animation: fade_in 800ms ease 1200ms;
+  -webkit-animation-fill-mode: both;
+  -moz-animation-fill-mode: both;
+  animation-fill-mode: both;
+}
+
+.game_message.game_over_message {
+  display: flex;
+}
+
+.button {
+  display: flex;
+  float: right;
+  text-align: center;
+  flex-shrink: 0;
+  text-decoration: none;
+  cursor: pointer;
+  background: #8f7a66;
+  color: #f9f6f2;
+  font-weight: bold;
+  font-size: 0.2em;
+  padding: 0.4em 0.8em;
+  border-radius: 0.2em;
+  margin-top: 1.4em;
+  margin-left: 0.5em;
 }
 
 /*# sourceMappingURL=style.css.map */

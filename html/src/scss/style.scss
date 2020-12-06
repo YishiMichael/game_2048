@@ -7,10 +7,10 @@ $tile_gold_glow_color: lighten($tile_gold_color, 15%);
 $text_color: #776E65;
 $bright_text_color: #f9f6f2;
 
-$tile_boarder_radius: 8%;
-$tile_margin: 10%;
+$tile_boarder_radius: 0.08em;
 
 $transition_speed: 100ms;
+$new_tile_animation_speed: 200ms;
 
 
 // Mixins
@@ -20,12 +20,6 @@ $transition_speed: 100ms;
   -moz-transition: $args;
   transition: $args;
 }
-
-//@mixin transition_property($args...) {
-//  -webkit-transition-property: $args;
-//  -moz-transition-property: $args;
-//  transition-property: $args;
-//}
 
 @mixin transform($args...) {
     -webkit-transform: $args;
@@ -46,25 +40,16 @@ $transition_speed: 100ms;
     animation-fill-mode: $args;
 }
 
-@mixin keyframes($animation_name) {
-    @-webkit-keyframes $animation_name {
-        @content;
-    }
-    @-moz-keyframes $animation_name {
-        @content;
-    }
-    @keyframes $animation_name {
-        @content;
-    }
-}
-
 
 // Basic styles
 
-html, body {
+* {
     margin: 0;
     padding: 0;
+    user-select: none;
+}
 
+html, body {
     background: #faf8ef;
     color: $text_color;
     font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
@@ -76,17 +61,88 @@ body {
 }
 
 .container {
-    display: flex;
-    justify-content: center;
-    width: 500px;
+    display: block;
     margin: 0 auto;
 }
+
+.heading {
+    &:after {
+        content: "";
+        display: block;
+        clear: both;
+    }
+}
+
+h1.title {
+    display: block;
+    float: left;
+    margin: 0;
+    font-weight: bold;
+    font-size: 0.7em;
+}
+
+
+// Score
+
+@keyframes move_up {
+    0% {
+        top: 0;
+        opacity: 1;
+    }
+    100% {
+        top: -2.0em;
+        opacity: 0;
+    }
+}
+
+.score_container {
+    display: flex;
+    position: relative;
+    float: right;
+    justify-content: center;
+    font-weight: bold;
+    background: $game_container_background;
+    color: $bright_text_color;
+
+    padding: 0.6em 0.7em;
+    font-size: 0.3em;
+    height: 1.0em;
+    line-height: 1.8em;
+    border-radius: 0.1em;
+    margin-bottom: 1.2em;
+
+    &:after {
+        position: absolute;
+        text-align: center;
+        text-transform: uppercase;
+        content: "Score";
+        color: $tile_color;
+        width: 100%;
+        top: 0.6em;
+        left: 0;
+        font-size: 0.5em;
+        line-height: 1.0em;
+    }
+
+    .score_addition {
+        position: absolute;
+        color: red;
+        font-size: 1.0em;
+        line-height: 3.0em;
+        font-weight: bold;
+        color: rgba($text_color, 0.9);
+        @include animation(move_up 600ms ease-in);
+        @include animation_fill_mode(both);
+    }
+}
+
+
+// Game field
 
 .game_container {
     display: inline-block;
     position: relative;
     z-index: 1;
-    user-select: none;
 }
 
 .grid_container {
@@ -94,9 +150,6 @@ body {
     position: absolute;
     z-index: 2;
     background: $game_container_background;
-    width: 100%;
-    height: 100%;
-    border-radius: 10px;
 }
 
 .grid_cell {
@@ -104,6 +157,8 @@ body {
     position: absolute;
     z-index: 3;
     background: rgba($tile_color, 0.35);
+    width: 1em;
+    height: 1em;
     border-radius: $tile_boarder_radius;
 }
 
@@ -111,16 +166,14 @@ body {
     display: inline-block;
     position: absolute;
     z-index: 4;
-    width: 100%;
-    height: 100%;
 }
 
 .tile {
     display: inline-block;
     position: absolute;
     z-index: 5;
-    border-radius: $tile_boarder_radius;
-
+    width: 1em;
+    height: 1em;
 
     .tile_inner {
         display: flex;
@@ -128,9 +181,9 @@ body {
         align-items: center;
         justify-content: center;
         font-weight: bold;
-        margin: $tile_margin;
-        width: 100% - $tile_margin * 2;
-        height: 100% - $tile_margin * 2;
+        width: 1em;
+        height: 1em;
+        border-radius: $tile_boarder_radius;
     }
 
     @include transition($transition_speed ease-in-out);
@@ -157,7 +210,7 @@ body {
 
     // Build tile colors
     @for $value from 1 through $limit {
-        &.tile_value_#{$value} {
+        &.tile_val_#{$value} .tile_inner {
             @if ($value >= 3) {
                 color: $bright_text_color;
             }
@@ -168,17 +221,17 @@ body {
             $glow_opacity: ($value - 4) / 12.6;
             $inset_glow_opacity: min($glow_opacity, 1.0) / 3;
             @if ($value > 7) {
-                box-shadow: 0 0 30px 10px rgba($tile_gold_glow_color, $glow_opacity),
-                    inset 0 0 0 1px rgba(white, $inset_glow_opacity);
+                box-shadow: 0 0 0.28em 0.1em rgba($tile_gold_glow_color, $glow_opacity),
+                    inset 0 0 0 0.01em rgba(white, $inset_glow_opacity);
             }
         }
     }
 }
 
 
-// Animations
+// Tile animations
 
-@include keyframes(appear) {
+@keyframes appear {
     0% {
         opacity: 0;
         @include transform(scale(0));
@@ -190,11 +243,11 @@ body {
 }
 
 .tile_new .tile_inner {
-    @include animation(appear 200ms ease $transition_speed);
+    @include animation(appear $new_tile_animation_speed ease $transition_speed);
     @include animation_fill_mode(backwards);
 }
 
-@include keyframes(pop) {
+@keyframes pop {
     0% {
         @include transform(scale(0));
     }
@@ -208,6 +261,61 @@ body {
 
 .tile_merged .tile_inner {
     z-index: 7;
-    @include animation(pop 200ms ease $transition_speed);
+    @include animation(pop $new_tile_animation_speed ease $transition_speed);
     @include animation_fill_mode(backwards);
+}
+
+
+// Game over message
+
+@keyframes fade_in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.game_message {
+    display: none;
+    position: absolute;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    z-index: 8;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: rgba(238, 228, 218, 0.73);
+    font-weight: bold;
+    font-size: 60%;
+
+    @include animation(fade_in 800ms ease $transition_speed * 12);
+    @include animation_fill_mode(both);
+}
+
+.game_message.game_over_message {
+    display: flex;
+}
+
+
+// Buttons
+
+.button {
+    display: flex;
+    float: right;
+    text-align: center;
+    flex-shrink: 0;
+    text-decoration: none;
+    cursor: pointer;
+    background: #8f7a66;
+    color: #f9f6f2;
+    font-weight: bold;
+    font-size: 0.2em;
+    padding: 0.4em 0.8em;
+    border-radius: 0.2em;
+    margin-top: 1.4em;
+    margin-left: 0.5em;
 }
