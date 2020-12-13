@@ -1,4 +1,15 @@
 "use strict";
+function query_selector(selector) {
+    return document.querySelector(selector);
+}
+function $(selector) {
+    // Throw an error if no elements are selected
+    let element = query_selector(selector);
+    if (!element) {
+        throw `No elements are selected by "${selector}"`;
+    }
+    return element;
+}
 function copy(array) {
     let result = [];
     array.forEach((val) => {
@@ -16,39 +27,34 @@ function prod(array) {
 function sample(samples) {
     return samples[Math.floor(Math.random() * samples.length)];
 }
-class GiantNumber {
+class GiantInteger {
     constructor(val = 0) {
         if (typeof val === "number") {
-            if (!val) {
-                this.v = [0];
-            }
-            else {
-                this.v = [];
-                let num = val;
-                while (num) {
-                    this.v.unshift(num % 10);
-                    num = Math.floor(num / 10);
-                }
+            this.q = [];
+            let num = val;
+            while (num) {
+                this.q.unshift(num % 10);
+                num = Math.floor(num / 10);
             }
         }
         else {
-            this.v = val;
+            this.q = val;
         }
     }
     g_copy() {
-        return new GiantNumber(this.v);
+        return new GiantInteger(this.q);
     }
     g_sum(g) {
-        if (this.v === [0]) {
+        if (!this.q.length) {
             return g;
         }
-        if (g.v === [0]) {
+        if (!g.q.length) {
             return this;
         }
         let result = [];
         let carry = 0;
-        let l1 = copy(this.v);
-        let l2 = copy(g.v);
+        let l1 = copy(this.q);
+        let l2 = copy(g.q);
         let val1;
         let val2;
         let digit;
@@ -68,10 +74,10 @@ class GiantNumber {
         if (carry) {
             result.unshift(1);
         }
-        return new GiantNumber(result);
+        return new GiantInteger(result);
     }
     g_increment(g) {
-        this.v = this.g_sum(g).v;
+        this.q = this.g_sum(g).q;
     }
     g_product(n) {
         let result = this.g_copy();
@@ -81,7 +87,10 @@ class GiantNumber {
         return result;
     }
     stringify() {
-        return this.v.join("");
+        if (!this.q.length) {
+            return "0";
+        }
+        return this.q.join("");
     }
 }
 class Core {
@@ -96,12 +105,12 @@ class Core {
         this.size = prod(shape);
         this.grid = new Array(this.size).fill(0);
         this.previous_grid = new Array(this.size).fill(0);
-        this.total_score = new GiantNumber();
-        this.previous_total_score = new GiantNumber();
+        this.total_score = new GiantInteger();
+        this.previous_total_score = new GiantInteger();
         this.game_over = false;
         this.powers = [];
         for (let power = 0; power <= 2; ++power) {
-            this.powers.push(new GiantNumber(Math.pow(atom, power)));
+            this.powers.push(new GiantInteger(Math.pow(atom, power)));
         }
     }
     get_strides() {
@@ -135,7 +144,7 @@ class Core {
         let grid = this.grid;
         let ngrid = new Array(this.size).fill(0);
         let link_data = new Map();
-        let score = new GiantNumber();
+        let score = new GiantInteger();
         let abs_minor_step = this.strides[axis];
         let minor_step = opposite ? -abs_minor_step : abs_minor_step;
         let major_step = abs_minor_step * this.shape[axis];
@@ -273,6 +282,7 @@ class Core {
         return index;
     }
     snake_fill_grid() {
+        // This works only when atom === 2
         let axis;
         let indices = new Array(this.dim).fill(0);
         let steps = new Array(this.dim).fill(1);
@@ -337,7 +347,7 @@ class Game extends Core {
                 super(recorded.shape, recorded.atom, recorded.view_dim);
                 this.grid = recorded.grid;
                 this.previous_grid = this.grid;
-                this.total_score = new GiantNumber(recorded.total_score.v);
+                this.total_score = new GiantInteger(recorded.total_score.q);
                 this.previous_total_score = this.total_score.g_copy();
                 this.game_over = recorded.game_over;
                 this.refresh_grid();
@@ -353,7 +363,7 @@ class Game extends Core {
             page_coverage: 0.8,
             lowest_level_buff: 0.15,
             buff_gap: 0.3,
-            tile_size_intervals_px: [35, 50, 65, 80, 100],
+            tile_size_intervals_px: [35, 50, 70, 90, 100],
             // To be computed
             frame_width: 0,
             full_width: 0,
@@ -361,29 +371,25 @@ class Game extends Core {
             tile_size_px: 0,
             game_field_width_px: 0,
             game_field_height_px: 0,
+            max_max_text_length: 0,
             max_text_length: 0,
         };
         this.recorder = recorder;
-        this.game_container = document.querySelector(".game_container");
-        this.grid_container = document.querySelector(".grid_container");
-        this.tile_container = document.querySelector(".tile_container");
-        this.score_container = document.querySelector(".score_container");
-        this.game_message = document.querySelector(".game_message");
         this.init(is_new_game);
     }
     init(is_new_game) {
         this.init_consts();
         this.init_client_related_consts();
         this.init_positions();
+        this.init_const_sizes();
         this.init_client_related_sizes();
         if (is_new_game) {
             this.add_start_tiles();
             this.update_score();
         }
         else if (this.total_score) {
-            let self = this;
             window.requestAnimationFrame(() => {
-                self.update_score_animation(self.total_score);
+                this.update_score_animation(this.total_score);
             });
         }
     }
@@ -415,7 +421,8 @@ class Game extends Core {
         return result;
     }
     css(id_name, rule_command) {
-        let style = document.querySelector(`#${id_name}`);
+        // Can this be the best practice?
+        let style = query_selector(`#${id_name}`);
         if (style) {
             style.textContent = rule_command;
         }
@@ -462,6 +469,7 @@ class Game extends Core {
         let full_grid_size = this.get_full_grid_size();
         this.c.full_width = full_grid_size[0];
         this.c.full_height = full_grid_size[1];
+        this.c.max_max_text_length = this.c.min_max_text_length + this.c.tile_size_intervals_px.length - 2;
     }
     init_client_related_consts() {
         let intervals = this.c.tile_size_intervals_px;
@@ -495,31 +503,28 @@ class Game extends Core {
             tile_position_commands.push(`.tile_position_${index} {transform: ${transform_str};}`);
             cell = document.createElement("div");
             cell.classList.add("grid_cell", `tile_position_${index}`);
-            this.grid_container.appendChild(cell);
+            $(".grid_container").appendChild(cell);
         }
         this.css("tile_positions", tile_position_commands.join("\n"));
+    }
+    init_const_sizes() {
+        this.css("game_container_size", `.game_container {
+            height: ${this.c.full_height}em;
+            border-radius: ${this.c.frame_width}em;
+        }`); // Width is inherited
+        let font_size;
+        let tile_text_commands = [];
+        for (let text_length = 1; text_length <= this.c.max_max_text_length; ++text_length) {
+            font_size = Math.min(0.55, 1.4 / text_length);
+            tile_text_commands.push(`.tile_text_length_${text_length} .tile_text {font-size: ${font_size}em;}`);
+        }
+        this.css("tile_texts", tile_text_commands.join("\n"));
     }
     init_client_related_sizes() {
         this.css("container_size", `.container {
             font-size: ${this.c.tile_size_px}px;
             width: ${this.c.game_field_width_px}px;
         }`);
-        this.css("game_container_size", `.game_container {
-            width: inherit;
-            height: ${this.c.full_height}em;
-        }`);
-        this.css("grid_and_tile_containers_size", `.grid_container, .tile_container {
-            width: ${this.c.full_width}em;
-            height: ${this.c.full_height}em;
-            border-radius: ${this.c.frame_width}em;
-        }`);
-        let font_size;
-        let tile_text_commands = [];
-        for (let text_length = 1; text_length <= this.c.max_text_length; ++text_length) {
-            font_size = Math.min(0.55, 1.4 / text_length);
-            tile_text_commands.push(`.tile_text_length_${text_length} .tile_text {font-size: ${font_size}em;}`);
-        }
-        this.css("tile_texts", tile_text_commands.join("\n"));
     }
     add_start_tiles() {
         let index;
@@ -550,27 +555,26 @@ class Game extends Core {
             `tile_text_length_${inner_text.length}`,
         ];
         this.apply_classes(tile, classes);
-        let self = this;
         if (typeof previous === "number") {
             // Make sure that the tile gets rendered in the previous position first
             let previous_classes = copy(classes);
             previous_classes[1] = `tile_position_${previous}`;
-            self.apply_classes(tile, previous_classes);
+            this.apply_classes(tile, previous_classes);
             window.requestAnimationFrame(() => {
-                self.apply_classes(tile, classes);
+                this.apply_classes(tile, classes);
             });
         }
         else if (previous) {
             classes.push("tile_merged");
-            self.apply_classes(tile, classes);
+            this.apply_classes(tile, classes);
             // Render the tiles that merged
             previous.forEach((merged_index) => {
-                self.add_tile(index, merged_index, val - 1);
+                this.add_tile(index, merged_index, val - 1);
             });
         }
         else {
             classes.push("tile_new");
-            self.apply_classes(tile, classes);
+            this.apply_classes(tile, classes);
         }
         let tile_inner = document.createElement("div");
         tile_inner.classList.add("tile_inner");
@@ -579,62 +583,64 @@ class Game extends Core {
         tile_text.textContent = inner_text;
         tile_inner.appendChild(tile_text);
         tile.appendChild(tile_inner);
-        this.tile_container.appendChild(tile);
+        $(".tile_container").appendChild(tile);
+    }
+    clear_tiles() {
+        this.clear_container($(".tile_container"));
     }
     update_score() {
-        this.score_container.textContent = this.total_score.stringify();
+        $(".score_value").textContent = this.total_score.stringify();
     }
     update_score_animation(score) {
-        this.clear_container(this.score_container);
+        this.clear_container($(".score_value"));
         this.update_score();
-        let addition = document.createElement("div");
-        addition.classList.add("score_addition");
-        addition.textContent = `+${score.stringify()}`;
-        this.score_container.appendChild(addition);
+        if (score.q.length) {
+            let addition = document.createElement("div");
+            addition.classList.add("score_addition");
+            addition.textContent = `+${score.stringify()}`;
+            $(".score_value").appendChild(addition);
+        }
     }
     show_game_over() {
-        this.game_message.classList.add("game_over_message");
-        this.game_message.textContent = "Game over!";
+        this.game_over = true;
+        $(".game_message").classList.add("game_over_message");
+        $(".game_message").textContent = "Game over!";
     }
     clear_game_over() {
-        this.game_message.classList.remove("game_over_message");
+        this.game_over = false;
+        $(".game_message").classList.remove("game_over_message");
     }
     actuate(axis, opposite) {
         let move_tiles_result = this.move_tiles(axis, opposite);
         if (!move_tiles_result.changed) {
             return false;
         }
-        let self = this;
         window.requestAnimationFrame(() => {
-            self.clear_container(self.tile_container);
+            this.clear_tiles();
             move_tiles_result.link_data.forEach((previous, index) => {
-                self.add_tile(index, previous);
+                this.add_tile(index, previous);
             });
             let score = move_tiles_result.score;
-            if (score.stringify() !== "0") {
-                self.update_score_animation(score);
-            }
+            this.update_score_animation(score);
             if (move_tiles_result.game_over) {
-                self.game_over = true;
-                self.show_game_over();
-                self.delete_saving();
+                this.show_game_over();
+                this.delete_saving();
             }
             else {
-                self.save_game();
+                this.save_game();
             }
         });
         return true;
     }
     refresh_grid() {
-        let self = this;
         window.requestAnimationFrame(() => {
-            self.clear_container(self.tile_container);
-            self.grid.forEach((val, index) => {
+            this.clear_tiles();
+            this.grid.forEach((val, index) => {
                 if (val) {
-                    self.add_tile(index);
+                    this.add_tile(index);
                 }
             });
-            self.update_score();
+            this.update_score();
         });
     }
     new_game() {
@@ -642,9 +648,8 @@ class Game extends Core {
         for (let index = 0; index < this.size; ++index) {
             this.grid[index] = 0;
         }
-        this.total_score = new GiantNumber();
-        this.previous_total_score = new GiantNumber();
-        this.game_over = false;
+        this.total_score = new GiantInteger();
+        this.previous_total_score = new GiantInteger();
         this.clear_game_over();
         this.add_start_tiles();
         this.refresh_grid();
@@ -652,7 +657,6 @@ class Game extends Core {
     withdraw() {
         this.grid = this.previous_grid;
         this.total_score = this.previous_total_score.g_copy();
-        this.game_over = false;
         this.clear_game_over();
         this.save_game();
         this.refresh_grid();
@@ -688,23 +692,82 @@ class Game extends Core {
     }
 }
 var game = new Game();
-window.onresize = function () {
-    game.window_onresize();
-};
+function new_size_game(shape, atom, view_dim) {
+    game.clear_container($(".grid_container"));
+    game.clear_tiles();
+    game.clear_game_over();
+    game.delete_saving();
+    game = new Game({ shape: shape, atom: atom, view_dim: view_dim });
+}
 document.addEventListener("keypress", (event) => {
     event.preventDefault();
     game.keyboard_event(event.key);
 });
-document.querySelector(".new_game_button").addEventListener("click", () => {
-    game.new_game();
-});
-document.querySelector(".withdraw_button").addEventListener("click", () => {
+window.onresize = function () {
+    game.window_onresize();
+};
+$(".withdraw_button").addEventListener("click", () => {
     game.withdraw();
 });
-function new_size_game(shape, atom, view_dim) {
-    game.delete_saving();
-    game.clear_container(game.grid_container);
-    game.clear_container(game.tile_container);
-    game = new Game({ shape: shape, atom: atom, view_dim: view_dim });
-}
+$(".auto_play_button").addEventListener("click", () => {
+    alert("To be implemented...");
+});
+$(".auto_play_speed_button").addEventListener("click", () => {
+    alert("To be implemented...");
+});
+$(".new_game_button").addEventListener("click", () => {
+    game.new_game();
+});
+$(".new_size_button").addEventListener("click", () => {
+    let shape_input = prompt("Type in the dimensions separated with commas\n"
+        + "(Eeach value should be at least 2):", "4, 4, 2");
+    if (!shape_input) {
+        return;
+    }
+    shape_input = shape_input.replace(/\s*/g, "");
+    let shape_valid_chars = "0123456789,";
+    for (let shape_char of shape_input) {
+        if (shape_valid_chars.indexOf(shape_char) === -1) {
+            alert("Invalid input!");
+            return;
+        }
+    }
+    let separated_shape_input = shape_input.split(",");
+    let shape = [];
+    let dimension_size;
+    for (let dimension_size_input of separated_shape_input) {
+        dimension_size = Number(dimension_size_input);
+        if (dimension_size < 2) {
+            alert("Invalid input!");
+            return;
+        }
+        shape.push(Number(dimension_size_input));
+    }
+    let atom_input = prompt("Type in the number of tiles to merge (at least 2):", "2");
+    if (!atom_input) {
+        return;
+    }
+    let atom_valid_chars = "0123456789";
+    for (let atom_char of atom_input) {
+        if (atom_valid_chars.indexOf(atom_char) === -1) {
+            alert("Invalid input!");
+            return;
+        }
+    }
+    let atom = Number(atom_input);
+    if (atom < 2) {
+        alert("Invalid input!");
+        return;
+    }
+    new_size_game(shape, atom, 2);
+});
+$(".key_bindings_button").addEventListener("click", () => {
+    alert("To be implemented...");
+});
 // TODO: clear all typescript compiling warnings
+// new_game_size() -> button
+// text paragraph
+// classes
+// `score` is overlapping -> redo layout
+// disable withdraw button
+// css style -> var(...) (inside scss)

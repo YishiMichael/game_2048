@@ -4,15 +4,25 @@
   <meta charset="utf-8">
   <title>2048</title>
   <link href="compiled/css/style.css" rel="stylesheet" type="text/css">
+  <link rel="shortcut icon" href="favicon.ico">
 </head>
 <body>
   <div class="container">
     <div class="heading">
       <h1 class="title">2048</h1>
-      <div class="button new_game_button">New Game</div>
-      <div class="button withdraw_button">Withdraw</div>
+      <div class="button_grid">
+        <div class="button withdraw_button">Withdraw</div>
+        <div class="button auto_play_button">Auto Play</div>
+        <div class="button auto_play_speed_button">...</div>
+        <div class="button new_game_button">New Game</div>
+        <div class="button new_size_button">...</div>
+        <div class="button key_bindings_button">Key Bindings</div>
+      </div>
     </div>
     <div class="score_container">
+      <div class="score_title">Score</div>
+      <div class="score_value">
+      </div>
     </div>
     <div class="game_container">
       <div class="game_message">
