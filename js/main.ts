@@ -68,7 +68,7 @@ interface MoveTilesResult {
 interface Constants {
     tile_style_limit: number,
     begin_tiles: number,
-    min_max_text_length: number,
+    max_text_length_upper_limit: number,
     page_coverage: number,
     lowest_level_buff: number,
     buff_gap: number,
@@ -79,7 +79,6 @@ interface Constants {
     tile_size_px: number,
     game_field_width_px: number,
     game_field_height_px: number,
-    max_max_text_length: number,
     max_text_length: number,
 }
 
@@ -464,10 +463,10 @@ class Game extends Core {
         this.c = {
             tile_style_limit: 14,
             begin_tiles: 2,
-            min_max_text_length: 6,
             page_coverage: 0.8,
             lowest_level_buff: 0.15,  // Relative to cell side length
             buff_gap: 0.3,  // Relative to cell side length
+            max_text_length_upper_limit: 9,
             tile_size_intervals_px: [35, 50, 70, 90, 100],
             // To be computed
             frame_width: 0,
@@ -476,8 +475,7 @@ class Game extends Core {
             tile_size_px: 0,
             game_field_width_px: 0,
             game_field_height_px: 0,
-            max_max_text_length: 0,
-            max_text_length: 0,
+            max_text_length: 0,  // 6 <= max_text_length <= 9
         };
         this.recorder = recorder;
         this.init(is_new_game);
@@ -487,7 +485,6 @@ class Game extends Core {
         this.init_consts();
         this.init_client_related_consts();
         this.init_positions();
-        this.init_const_sizes();
         this.init_client_related_sizes();
         if (is_new_game) {
             this.add_start_tiles();
@@ -577,7 +574,6 @@ class Game extends Core {
         let full_grid_size: number[] = this.get_full_grid_size();
         this.c.full_width = full_grid_size[0];
         this.c.full_height = full_grid_size[1];
-        this.c.max_max_text_length = this.c.min_max_text_length + this.c.tile_size_intervals_px.length - 2;
     }
 
     init_client_related_consts(): boolean {
@@ -593,10 +589,10 @@ class Game extends Core {
         this.c.game_field_width_px = tile_size_px * this.c.full_width;
         this.c.game_field_height_px = tile_size_px * this.c.full_height;
 
-        let max_text_length: number = this.c.min_max_text_length;
+        let max_text_length: number = this.c.max_text_length_upper_limit;
         intervals.slice(1, intervals.length - 1).forEach((interval: number) => {
-            if (tile_size_px > interval) {
-                ++max_text_length;
+            if (tile_size_px < interval) {
+                --max_text_length;
             }
         });
         this.c.max_text_length = max_text_length;
@@ -604,6 +600,11 @@ class Game extends Core {
     }
 
     init_positions(): void {
+        this.css("game_container_size", `.game_container {
+            height: ${this.c.full_height}em;
+            border-radius: ${this.c.frame_width}em;
+        }`);  // Width is inherited
+
         let anchor_point: number[];
         let transform_str: string;
         let cell: Element;
@@ -617,21 +618,6 @@ class Game extends Core {
             $(".grid_container").appendChild(cell);
         }
         this.css("tile_positions", tile_position_commands.join("\n"));
-    }
-
-    init_const_sizes(): void {
-        this.css("game_container_size", `.game_container {
-            height: ${this.c.full_height}em;
-            border-radius: ${this.c.frame_width}em;
-        }`);  // Width is inherited
-
-        let font_size: number;
-        let tile_text_commands: string[] = [];
-        for (let text_length: number = 1; text_length <= this.c.max_max_text_length; ++text_length) {
-            font_size = Math.min(0.55, 1.4 / text_length);
-            tile_text_commands.push(`.tile_text_length_${text_length} .tile_text {font-size: ${font_size}em;}`);
-        }
-        this.css("tile_texts", tile_text_commands.join("\n"));
     }
 
     init_client_related_sizes(): void {
@@ -840,6 +826,16 @@ function new_size_game(shape: number[], atom: number, view_dim: number): void {
     game = new Game({shape: shape, atom: atom, view_dim: view_dim});
 }
 
+function check_validity(test_string: string, valid_chars: string): string {
+    let result_string: string = test_string.replace(/\s*/g, "");  // Ignore spaces
+    for (let char of result_string) {
+        if (valid_chars.indexOf(char) === -1) {
+            return "";
+        }
+    }
+    return result_string;
+}
+
 
 document.addEventListener("keypress", (event: Event) => {
     event.preventDefault();
@@ -867,18 +863,17 @@ $(".new_game_button").addEventListener("click", () => {
 });
 
 $(".new_size_button").addEventListener("click", () => {
-    let shape_input: string = prompt("Type in the dimensions separated with commas\n"
+    let invalid_input_message: string = "Invalid input!";
+
+    let shape_input: string | null = prompt("Type in the dimensions separated with commas\n"
         + "(Eeach value should be at least 2):", "4, 4, 2");
     if (!shape_input) {
         return;
     }
-    shape_input = shape_input.replace(/\s*/g, "");
-    let shape_valid_chars: string = "0123456789,";
-    for (let shape_char of shape_input) {
-        if (shape_valid_chars.indexOf(shape_char) === -1) {
-            alert("Invalid input!");
-            return;
-        }
+    shape_input = check_validity(shape_input, "0123456789,");
+    if (!shape_input.length) {
+        alert(invalid_input_message);
+        return;
     }
     let separated_shape_input: string[] = shape_input.split(",");
     let shape: number[] = [];
@@ -886,26 +881,24 @@ $(".new_size_button").addEventListener("click", () => {
     for (let dimension_size_input of separated_shape_input) {
         dimension_size = Number(dimension_size_input);
         if (dimension_size < 2) {
-            alert("Invalid input!");
+            alert(invalid_input_message);
             return;
         }
-        shape.push(Number(dimension_size_input));
+        shape.push(dimension_size);
     }
 
-    let atom_input: string = prompt("Type in the number of tiles to merge (at least 2):", "2");
+    let atom_input: string | null = prompt("Type in the number of tiles to merge (at least 2):", "2");
     if (!atom_input) {
         return;
     }
-    let atom_valid_chars: string = "0123456789";
-    for (let atom_char of atom_input) {
-        if (atom_valid_chars.indexOf(atom_char) === -1) {
-            alert("Invalid input!");
-            return;
-        }
+    atom_input = check_validity(atom_input, "0123456789");
+    if (!atom_input.length) {
+        alert(invalid_input_message);
+        return;
     }
     let atom: number = Number(atom_input);
     if (atom < 2) {
-        alert("Invalid input!");
+        alert(invalid_input_message);
         return;
     }
 
@@ -916,11 +909,10 @@ $(".key_bindings_button").addEventListener("click", () => {
     alert("To be implemented...");
 });
 
-
-
 // TODO: clear all typescript compiling warnings
+// use css variables: style -> var(...)
+// curtain
 // text paragraph
 // classes
 // disable withdraw button
-// css style -> var(...) (inside scss)
 // modify README

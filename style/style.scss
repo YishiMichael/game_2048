@@ -78,7 +78,7 @@ html, body {
     display: grid;
     justify-content: end;
     grid-template-columns: 7.2em 2em;
-    grid-gap: 0.5em 0.2em;
+    grid-gap: 0.5em 0.15em;
     font-size: 0.2em;
 
     .button {
@@ -91,8 +91,18 @@ html, body {
       border-radius: 0.2em;
     }
 
-    .withdraw_button, .key_bindings_button {
+    .main_button {
       grid-column-start: span 2;
+    }
+
+    .left_button {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .right_button {
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
     }
   }
 }
@@ -271,11 +281,18 @@ html, body {
 
           // Add glow
           $glow_opacity: ($value - 4) / 12.6;
-          $inset_glow_opacity: min($glow_opacity, 1.0) / 3;
-          @if ($value > 7) {
+          $inset_glow_opacity: min($glow_opacity * 1.8, 1.0) / 3;
+          @if ($value >= 7) {
             box-shadow: 0 0 0.28em 0.1em rgba($tile_gold_glow_color, $glow_opacity),
               inset 0 0 0 0.01em rgba(white, $inset_glow_opacity);
           }
+        }
+      }
+
+      @for $text_length from 1 through 9 {
+        $font_size: min(0.55, 1.4 / $text_length) + em;
+        &.tile_text_length_#{$text_length} .tile_text {
+          font-size: $font_size;
         }
       }
     }

@@ -1,19 +1,14 @@
 # game_2048
 
-*The 2048 game based on Python tkinter module*
+*The web-based 2048 game*
 
-Simply run
-```sh
-python game_2048.py
-```
+Simply run `index.html`.
 
 ## Features
 
 > Mlutiple dimentions  
 > Scalable shape  
 > Variable to set the number of tiles to merge
-
-To be updated later...
 
 ## Requirements
 

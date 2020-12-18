@@ -29,7 +29,7 @@ html, body {
   display: grid;
   justify-content: end;
   grid-template-columns: 7.2em 2em;
-  grid-gap: 0.5em 0.2em;
+  grid-gap: 0.5em 0.15em;
   font-size: 0.2em;
 }
 .heading .button_grid .button {
@@ -41,8 +41,16 @@ html, body {
   padding: 0.2em 0;
   border-radius: 0.2em;
 }
-.heading .button_grid .withdraw_button, .heading .button_grid .key_bindings_button {
+.heading .button_grid .main_button {
   grid-column-start: span 2;
+}
+.heading .button_grid .left_button {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.heading .button_grid .right_button {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 .score_container {
@@ -212,41 +220,69 @@ html, body {
 .game_container .tile_container .tile.tile_val_7 .tile_inner {
   color: #f9f6f2;
   background: #edcf72;
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.2380952381), inset 0 0 0 0.01em rgba(255, 255, 255, 0.1428571429);
 }
 .game_container .tile_container .tile.tile_val_8 .tile_inner {
   color: #f9f6f2;
   background: #edcc61;
-  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.3174603175), inset 0 0 0 0.01em rgba(255, 255, 255, 0.1058201058);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.3174603175), inset 0 0 0 0.01em rgba(255, 255, 255, 0.1904761905);
 }
 .game_container .tile_container .tile.tile_val_9 .tile_inner {
   color: #f9f6f2;
   background: #edc850;
-  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.3968253968), inset 0 0 0 0.01em rgba(255, 255, 255, 0.1322751323);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.3968253968), inset 0 0 0 0.01em rgba(255, 255, 255, 0.2380952381);
 }
 .game_container .tile_container .tile.tile_val_10 .tile_inner {
   color: #f9f6f2;
   background: #edc53f;
-  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.4761904762), inset 0 0 0 0.01em rgba(255, 255, 255, 0.1587301587);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.4761904762), inset 0 0 0 0.01em rgba(255, 255, 255, 0.2857142857);
 }
 .game_container .tile_container .tile.tile_val_11 .tile_inner {
   color: #f9f6f2;
   background: #edc22e;
-  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.5555555556), inset 0 0 0 0.01em rgba(255, 255, 255, 0.1851851852);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.5555555556), inset 0 0 0 0.01em rgba(255, 255, 255, 0.3333333333);
 }
 .game_container .tile_container .tile.tile_val_12 .tile_inner {
   color: #f9f6f2;
   background: #ebb914;
-  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.6349206349), inset 0 0 0 0.01em rgba(255, 255, 255, 0.2116402116);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.6349206349), inset 0 0 0 0.01em rgba(255, 255, 255, 0.3333333333);
 }
 .game_container .tile_container .tile.tile_val_13 .tile_inner {
   color: #f9f6f2;
   background: #d3a612;
-  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.7142857143), inset 0 0 0 0.01em rgba(255, 255, 255, 0.2380952381);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.7142857143), inset 0 0 0 0.01em rgba(255, 255, 255, 0.3333333333);
 }
 .game_container .tile_container .tile.tile_val_14 .tile_inner {
   color: #f9f6f2;
   background: #bc9410;
-  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.7936507937), inset 0 0 0 0.01em rgba(255, 255, 255, 0.2645502646);
+  box-shadow: 0 0 0.28em 0.1em rgba(243, 215, 116, 0.7936507937), inset 0 0 0 0.01em rgba(255, 255, 255, 0.3333333333);
+}
+.game_container .tile_container .tile.tile_text_length_1 .tile_text {
+  font-size: 0.55em;
+}
+.game_container .tile_container .tile.tile_text_length_2 .tile_text {
+  font-size: 0.55em;
+}
+.game_container .tile_container .tile.tile_text_length_3 .tile_text {
+  font-size: 0.4666666667em;
+}
+.game_container .tile_container .tile.tile_text_length_4 .tile_text {
+  font-size: 0.35em;
+}
+.game_container .tile_container .tile.tile_text_length_5 .tile_text {
+  font-size: 0.28em;
+}
+.game_container .tile_container .tile.tile_text_length_6 .tile_text {
+  font-size: 0.2333333333em;
+}
+.game_container .tile_container .tile.tile_text_length_7 .tile_text {
+  font-size: 0.2em;
+}
+.game_container .tile_container .tile.tile_text_length_8 .tile_text {
+  font-size: 0.175em;
+}
+.game_container .tile_container .tile.tile_text_length_9 .tile_text {
+  font-size: 0.1555555556em;
 }
 .game_container .tile_container .tile_new .tile_inner {
   -webkit-animation: appear 200ms ease 100ms;
