@@ -58,9 +58,16 @@ html, body {
 }
 
 
+body {
+  margin: 0 10vw;
+}
+
+
 .container {
   display: block;
-  margin: 80px auto;
+  margin: 12vh auto;
+  // font-size: set;
+  // width: set;
 }
 
 
@@ -77,7 +84,7 @@ html, body {
   .button_grid {
     display: grid;
     justify-content: end;
-    grid-template-columns: 7.2em 2em;
+    grid-template-columns: 8.8em 2em;
     grid-gap: 0.5em 0.15em;
     font-size: 0.2em;
 
@@ -169,6 +176,8 @@ html, body {
   position: relative;
   z-index: 1;
   width: inherit;
+  // height: set;
+  // border-radius: set;
 
   .game_message {
     display: none;
@@ -219,6 +228,7 @@ html, body {
       width: 1em;
       height: 1em;
       border-radius: $tile_boarder_radius;
+      // transform: set;
     }
   }
 
@@ -236,6 +246,7 @@ html, body {
       z-index: 5;
       width: 1em;
       height: 1em;
+      // transform: set;
 
       .tile_inner {
         display: flex;

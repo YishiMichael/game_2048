@@ -1,24 +1,5 @@
-function query_selector(selector: string): Element | null {
-    return document.querySelector(selector);
-}
-
-
-function $(selector: string): Element {
-    // Throw an error if no elements are selected
-    let element: Element | null = query_selector(selector);
-    if (!element) {
-        throw `No elements are selected by "${selector}"`;
-    }
-    return element;
-}
-
-
 function copy<T>(array: T[]): T[] {
-    let result: T[] = [];
-    array.forEach((val: T) => {
-        result.push(val);
-    });
-    return result;
+    return [...array];
 }
 
 
@@ -68,17 +49,15 @@ interface MoveTilesResult {
 interface Constants {
     tile_style_limit: number,
     begin_tiles: number,
-    max_text_length_upper_limit: number,
     page_coverage: number,
     lowest_level_buff: number,
     buff_gap: number,
+    tile_size_px: number,
+    max_text_length_upper_limit: number,
     tile_size_intervals_px: number[],
     frame_width: number,
     full_width: number,
     full_height: number,
-    tile_size_px: number,
-    game_field_width_px: number,
-    game_field_height_px: number,
     max_text_length: number,
 }
 
@@ -466,15 +445,13 @@ class Game extends Core {
             page_coverage: 0.8,
             lowest_level_buff: 0.15,  // Relative to cell side length
             buff_gap: 0.3,  // Relative to cell side length
+            tile_size_px: 100.0,
             max_text_length_upper_limit: 9,
-            tile_size_intervals_px: [35, 50, 70, 90, 100],
+            tile_size_intervals_px: [35.0 /*6*/, 50.0 /*7*/, 70.0 /*8*/, 90.0 /*9*/],
             // To be computed
             frame_width: 0,
             full_width: 0,
             full_height: 0,
-            tile_size_px: 0,
-            game_field_width_px: 0,
-            game_field_height_px: 0,
             max_text_length: 0,  // 6 <= max_text_length <= 9
         };
         this.recorder = recorder;
@@ -483,9 +460,9 @@ class Game extends Core {
 
     init(is_new_game: boolean): void {
         this.init_consts();
-        this.init_client_related_consts();
         this.init_positions();
-        this.init_client_related_sizes();
+        this.init_font_size();
+        this.init_max_text_length();
         if (is_new_game) {
             this.add_start_tiles();
             this.update_score();
@@ -525,19 +502,6 @@ class Game extends Core {
         return result;
     }
 
-    css(id_name: string, rule_command: string): void {
-        // Can this be the best practice?
-        let style: Element | null = query_selector(`#${id_name}`);
-        if (style) {
-            style.textContent = rule_command;
-        } else {
-            style = document.createElement("style");
-            style.id = id_name;
-            style.textContent = rule_command;
-            document.head.appendChild(style);
-        }
-    }
-
     get_2D_translate_string(translate_list: number[]): string {
         let translate_str_list: string[] = [];
         translate_list.forEach((ratio: number) => {
@@ -547,20 +511,25 @@ class Game extends Core {
         return `translate(${translate_str})`;
     }
 
+    get_tile_transform_string(index: number): string {
+        return this.get_2D_translate_string(this.get_cell_anchor_point(index));
+    }
+
     get_text_string(val: number): string {
+        let max_text_length: number = this.c.max_text_length;
         let power: number = Math.pow(this.atom, val);
-        if (power >= Math.pow(10, this.c.max_text_length)) {
+        if (power >= Math.pow(10, max_text_length)) {
             let logarithm: number = Math.log10(this.atom) * val;
             let exponent: number = Math.floor(logarithm);
             if (exponent >= 100) {
                 let power_string: string = `${this.atom}^${val}`;
-                if (power_string.length > this.c.max_text_length) {
+                if (power_string.length > max_text_length) {
                     return "INF";
                 } else {
                     return `${this.atom}^${val}`;
                 }
             }
-            let decimals: number = this.c.max_text_length - String(exponent).length - 3;
+            let decimals: number = max_text_length - String(exponent).length - 3;
             let coefficient: number = Math.round(Math.pow(10, logarithm - exponent + decimals));
             let coefficient_str: string = String(coefficient);
             return `${coefficient_str[0]}.${coefficient_str.slice(1)}E${exponent}`;
@@ -570,61 +539,45 @@ class Game extends Core {
     }
 
     init_consts(): void {
-        this.c.frame_width = Math.ceil(this.dim / this.view_dim - 1) * this.c.buff_gap + this.c.lowest_level_buff;
+        this.c.frame_width = Math.ceil(this.dim / this.view_dim - 1)
+            * this.c.buff_gap + this.c.lowest_level_buff;
         let full_grid_size: number[] = this.get_full_grid_size();
         this.c.full_width = full_grid_size[0];
         this.c.full_height = full_grid_size[1];
     }
 
-    init_client_related_consts(): boolean {
-        let intervals: number[] = this.c.tile_size_intervals_px;
-        let client_width: number = document.body.clientWidth * this.c.page_coverage;
-        let tile_size_px: number = client_width / this.c.full_width;
-        tile_size_px = Math.max(tile_size_px, intervals[0]);
-        tile_size_px = Math.min(tile_size_px, intervals[intervals.length - 1]);
-        if (this.c.tile_size_px === tile_size_px) {
-            return false;  // No variables changed
-        }
+    modify_tile_size_px(tile_size_px: number): void {
         this.c.tile_size_px = tile_size_px;
-        this.c.game_field_width_px = tile_size_px * this.c.full_width;
-        this.c.game_field_height_px = tile_size_px * this.c.full_height;
+        this.init_font_size();
+        this.init_max_text_length();
+        this.refresh_grid();
+    }
 
+    init_max_text_length(): void {
+        let tile_size_px: number = this.c.tile_size_px;
         let max_text_length: number = this.c.max_text_length_upper_limit;
-        intervals.slice(1, intervals.length - 1).forEach((interval: number) => {
+        this.c.tile_size_intervals_px.slice(1).forEach((interval: number) => {
             if (tile_size_px < interval) {
                 --max_text_length;
             }
         });
         this.c.max_text_length = max_text_length;
-        return true;
     }
 
     init_positions(): void {
-        this.css("game_container_size", `.game_container {
-            height: ${this.c.full_height}em;
-            border-radius: ${this.c.frame_width}em;
-        }`);  // Width is inherited
+        $(".container").css("width", `${this.c.full_width}em`);
+        $(".game_container").css("height", `${this.c.full_height}em`);
+        $(".game_container").css("border-radius", `${this.c.frame_width}em`);
 
-        let anchor_point: number[];
-        let transform_str: string;
-        let cell: Element;
-        let tile_position_commands: string[] = [];
         for (let index: number = 0; index < this.size; ++index) {
-            anchor_point = this.get_cell_anchor_point(index);
-            transform_str = this.get_2D_translate_string(anchor_point);
-            tile_position_commands.push(`.tile_position_${index} {transform: ${transform_str};}`);
-            cell = document.createElement("div");
-            cell.classList.add("grid_cell", `tile_position_${index}`);
-            $(".grid_container").appendChild(cell);
+            $("<div></div>").addClass("grid_cell")
+                .css("transform", this.get_tile_transform_string(index))
+                .appendTo(".grid_container");
         }
-        this.css("tile_positions", tile_position_commands.join("\n"));
     }
 
-    init_client_related_sizes(): void {
-        this.css("container_size", `.container {
-            font-size: ${this.c.tile_size_px}px;
-            width: ${this.c.game_field_width_px}px;
-        }`);
+    init_font_size(): void {
+        $(".container").css("font-size", `${this.c.tile_size_px}px`);
     }
 
     add_start_tiles(): void {
@@ -636,91 +589,70 @@ class Game extends Core {
         this.previous_grid = this.grid;
     }
 
-    apply_classes(element: Element, classes: string[]): void {
-        element.setAttribute("class", classes.join(" "));
-    }
-
-    clear_container(container: Element): void {
-        while (container.firstChild) {
-            container.removeChild(container.firstChild);
-        }
-    }
-
     add_tile(index: number, previous: PreviousType = null, val: number = 0): void {
         if (!val) {
             val = this.grid[index];
         }
         let inner_text: string = this.get_text_string(val);
 
-        let tile: Element = document.createElement("div");
-        let classes: string[] = [
+        let tile: JQuery<HTMLElement> = $("<div></div>").addClass([
             "tile",
-            `tile_position_${index}`,
             `tile_val_${Math.min(val, this.c.tile_style_limit)}`,
-            `tile_text_length_${inner_text.length}`,
-        ];
-        this.apply_classes(tile, classes);
+            `tile_text_length_${inner_text.length}`
+        ].join(" "));
+        tile.css("transform", this.get_tile_transform_string(index));
 
         if (typeof previous === "number") {
             // Make sure that the tile gets rendered in the previous position first
-            let previous_classes: string[] = copy<string>(classes);
-            previous_classes[1] = `tile_position_${previous}`;
-            this.apply_classes(tile, previous_classes);
+            tile.css("transform", this.get_tile_transform_string(previous));
             window.requestAnimationFrame(() => {
-                this.apply_classes(tile, classes);
+                tile.css("transform", this.get_tile_transform_string(index));
             });
         } else if (previous) {
-            classes.push("tile_merged");
-            this.apply_classes(tile, classes);
+            tile.addClass("tile_merged");
             // Render the tiles that merged
             previous.forEach((merged_index: number) => {
                 this.add_tile(index, merged_index, val - 1);
             });
         } else {
-            classes.push("tile_new");
-            this.apply_classes(tile, classes);
+            tile.addClass("tile_new");
         }
 
-        let tile_inner: Element = document.createElement("div");
-        tile_inner.classList.add("tile_inner");
-
-        let tile_text: Element = document.createElement("div");
-        tile_text.classList.add("tile_text");
-        tile_text.textContent = inner_text;
-        
-        tile_inner.appendChild(tile_text);
-        tile.appendChild(tile_inner);
-        $(".tile_container").appendChild(tile);
+        $(".tile_container").append(
+            tile.append(
+                $("<div></div>").addClass("tile_inner").append(
+                    $("<div></div>").addClass("tile_text").text(inner_text)
+                )
+            )
+        );
     }
 
     clear_tiles(): void {
-        this.clear_container($(".tile_container"));
+        $(".tile_container").empty();
     }
 
     update_score(): void {
-        $(".score_value").textContent = this.total_score.stringify();
+        $(".score_value").text(this.total_score.stringify());
     }
 
     update_score_animation(score: GiantInteger): void {
-        this.clear_container($(".score_value"));
+        $(".score_value").empty();
         this.update_score();
         if (score.q.length) {
-            let addition: Element = document.createElement("div");
-            addition.classList.add("score_addition");
-            addition.textContent = `+${score.stringify()}`;
-            $(".score_value").appendChild(addition);
+            $("<div></div>").addClass("score_addition")
+                .text(`+${score.stringify()}`)
+                .appendTo(".score_value");
         }
     }
 
     show_game_over(): void {
         this.game_over = true;
-        $(".game_message").classList.add("game_over_message");
-        $(".game_message").textContent = "Game over!";
+        $(".game_message").addClass("game_over_message").text("Game over!");
     }
 
     clear_game_over(): void {
         this.game_over = false;
-        $(".game_message").classList.remove("game_over_message");
+        $(".game_message").removeClass("game_over_message");
     }
 
     actuate(axis: number, opposite: boolean): boolean {
@@ -801,14 +733,6 @@ class Game extends Core {
         this.actuate(axis, opposite);
     }
 
-    window_onresize(): void {
-        let changed: boolean = this.init_client_related_consts();
-        if (changed) {
-            this.init_client_related_sizes();
-            this.refresh_grid();
-        }
-    }
-
     snake_fill_tiles(): void {
         this.snake_fill_grid();
         this.refresh_grid();
@@ -819,7 +743,7 @@ class Game extends Core {
 var game = new Game();
 
 function new_size_game(shape: number[], atom: number, view_dim: number): void {
-    game.clear_container($(".grid_container"));
+    $(".grid_container").empty();
     game.clear_tiles();
     game.clear_game_over();
     game.delete_saving();
@@ -842,27 +766,23 @@ document.addEventListener("keypress", (event: Event) => {
     game.keyboard_event(event.key);
 });
 
-window.onresize = function() {
-    game.window_onresize();
-}
-
-$(".withdraw_button").addEventListener("click", () => {
+$(".withdraw_button").click(() => {
     game.withdraw();
 });
 
-$(".auto_play_button").addEventListener("click", () => {
+$(".random_play_button").click(() => {
     alert("To be implemented...");
 });
 
-$(".auto_play_speed_button").addEventListener("click", () => {
+$(".random_play_speed_button").click(() => {
     alert("To be implemented...");
 });
 
-$(".new_game_button").addEventListener("click", () => {
+$(".new_game_button").click(() => {
     game.new_game();
 });
 
-$(".new_size_button").addEventListener("click", () => {
+$(".new_size_button").click(() => {
     let invalid_input_message: string = "Invalid input!";
 
     let shape_input: string | null = prompt("Type in the dimensions separated with commas\n"
@@ -905,14 +825,13 @@ $(".new_size_button").addEventListener("click", () => {
     new_size_game(shape, atom, 2);
 });
 
-$(".key_bindings_button").addEventListener("click", () => {
+$(".key_bindings_button").click(() => {
     alert("To be implemented...");
 });
 
 // TODO: clear all typescript compiling warnings
-// use css variables: style -> var(...)
 // curtain
 // text paragraph
 // classes
 // disable withdraw button
-// modify README
+// zoom buttons (use sticky, place at the top-right corner)

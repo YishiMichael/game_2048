@@ -1,21 +1,6 @@
 "use strict";
-function query_selector(selector) {
-    return document.querySelector(selector);
-}
-function $(selector) {
-    // Throw an error if no elements are selected
-    let element = query_selector(selector);
-    if (!element) {
-        throw `No elements are selected by "${selector}"`;
-    }
-    return element;
-}
 function copy(array) {
-    let result = [];
-    array.forEach((val) => {
-        result.push(val);
-    });
-    return result;
+    return [...array];
 }
 function prod(array) {
     let result = 1;
@@ -362,15 +347,13 @@ class Game extends Core {
             page_coverage: 0.8,
             lowest_level_buff: 0.15,
             buff_gap: 0.3,
+            tile_size_px: 100.0,
             max_text_length_upper_limit: 9,
-            tile_size_intervals_px: [35, 50, 70, 90, 100],
+            tile_size_intervals_px: [35.0 /*6*/, 50.0 /*7*/, 70.0 /*8*/, 90.0 /*9*/],
             // To be computed
             frame_width: 0,
             full_width: 0,
             full_height: 0,
-            tile_size_px: 0,
-            game_field_width_px: 0,
-            game_field_height_px: 0,
             max_text_length: 0,
         };
         this.recorder = recorder;
@@ -378,9 +361,9 @@ class Game extends Core {
     }
     init(is_new_game) {
         this.init_consts();
-        this.init_client_related_consts();
         this.init_positions();
-        this.init_client_related_sizes();
+        this.init_font_size();
+        this.init_max_text_length();
         if (is_new_game) {
             this.add_start_tiles();
             this.update_score();
@@ -418,19 +401,6 @@ class Game extends Core {
         });
         return result;
     }
-    css(id_name, rule_command) {
-        // Can this be the best practice?
-        let style = query_selector(`#${id_name}`);
-        if (style) {
-            style.textContent = rule_command;
-        }
-        else {
-            style = document.createElement("style");
-            style.id = id_name;
-            style.textContent = rule_command;
-            document.head.appendChild(style);
-        }
-    }
     get_2D_translate_string(translate_list) {
         let translate_str_list = [];
         translate_list.forEach((ratio) => {
@@ -439,21 +409,25 @@ class Game extends Core {
         let translate_str = translate_str_list.join(", ");
         return `translate(${translate_str})`;
     }
+    get_tile_transform_string(index) {
+        return this.get_2D_translate_string(this.get_cell_anchor_point(index));
+    }
     get_text_string(val) {
+        let max_text_length = this.c.max_text_length;
         let power = Math.pow(this.atom, val);
-        if (power >= Math.pow(10, this.c.max_text_length)) {
+        if (power >= Math.pow(10, max_text_length)) {
             let logarithm = Math.log10(this.atom) * val;
             let exponent = Math.floor(logarithm);
             if (exponent >= 100) {
                 let power_string = `${this.atom}^${val}`;
-                if (power_string.length > this.c.max_text_length) {
+                if (power_string.length > max_text_length) {
                     return "INF";
                 }
                 else {
                     return `${this.atom}^${val}`;
                 }
             }
-            let decimals = this.c.max_text_length - String(exponent).length - 3;
+            let decimals = max_text_length - String(exponent).length - 3;
             let coefficient = Math.round(Math.pow(10, logarithm - exponent + decimals));
             let coefficient_str = String(coefficient);
             return `${coefficient_str[0]}.${coefficient_str.slice(1)}E${exponent}`;
@@ -463,56 +437,40 @@ class Game extends Core {
         }
     }
     init_consts() {
-        this.c.frame_width = Math.ceil(this.dim / this.view_dim - 1) * this.c.buff_gap + this.c.lowest_level_buff;
+        this.c.frame_width = Math.ceil(this.dim / this.view_dim - 1)
+            * this.c.buff_gap + this.c.lowest_level_buff;
         let full_grid_size = this.get_full_grid_size();
         this.c.full_width = full_grid_size[0];
         this.c.full_height = full_grid_size[1];
     }
-    init_client_related_consts() {
-        let intervals = this.c.tile_size_intervals_px;
-        let client_width = document.body.clientWidth * this.c.page_coverage;
-        let tile_size_px = client_width / this.c.full_width;
-        tile_size_px = Math.max(tile_size_px, intervals[0]);
-        tile_size_px = Math.min(tile_size_px, intervals[intervals.length - 1]);
-        if (this.c.tile_size_px === tile_size_px) {
-            return false; // No variables changed
-        }
+    modify_tile_size_px(tile_size_px) {
         this.c.tile_size_px = tile_size_px;
-        this.c.game_field_width_px = tile_size_px * this.c.full_width;
-        this.c.game_field_height_px = tile_size_px * this.c.full_height;
+        this.init_font_size();
+        this.init_max_text_length();
+        this.refresh_grid();
+    }
+    init_max_text_length() {
+        let tile_size_px = this.c.tile_size_px;
         let max_text_length = this.c.max_text_length_upper_limit;
-        intervals.slice(1, intervals.length - 1).forEach((interval) => {
+        this.c.tile_size_intervals_px.slice(1).forEach((interval) => {
             if (tile_size_px < interval) {
                 --max_text_length;
             }
         });
         this.c.max_text_length = max_text_length;
-        return true;
     }
     init_positions() {
-        this.css("game_container_size", `.game_container {
-            height: ${this.c.full_height}em;
-            border-radius: ${this.c.frame_width}em;
-        }`); // Width is inherited
-        let anchor_point;
-        let transform_str;
-        let cell;
-        let tile_position_commands = [];
+        $(".container").css("width", `${this.c.full_width}em`);
+        $(".game_container").css("height", `${this.c.full_height}em`);
+        $(".game_container").css("border-radius", `${this.c.frame_width}em`);
         for (let index = 0; index < this.size; ++index) {
-            anchor_point = this.get_cell_anchor_point(index);
-            transform_str = this.get_2D_translate_string(anchor_point);
-            tile_position_commands.push(`.tile_position_${index} {transform: ${transform_str};}`);
-            cell = document.createElement("div");
-            cell.classList.add("grid_cell", `tile_position_${index}`);
-            $(".grid_container").appendChild(cell);
+            $("<div></div>").addClass("grid_cell")
+                .css("transform", this.get_tile_transform_string(index))
+                .appendTo(".grid_container");
         }
-        this.css("tile_positions", tile_position_commands.join("\n"));
     }
-    init_client_related_sizes() {
-        this.css("container_size", `.container {
-            font-size: ${this.c.tile_size_px}px;
-            width: ${this.c.game_field_width_px}px;
-        }`);
+    init_font_size() {
+        $(".container").css("font-size", `${this.c.tile_size_px}px`);
     }
     add_start_tiles() {
         let index;
@@ -522,81 +480,58 @@ class Game extends Core {
         }
         this.previous_grid = this.grid;
     }
-    apply_classes(element, classes) {
-        element.setAttribute("class", classes.join(" "));
-    }
-    clear_container(container) {
-        while (container.firstChild) {
-            container.removeChild(container.firstChild);
-        }
-    }
     add_tile(index, previous = null, val = 0) {
         if (!val) {
             val = this.grid[index];
         }
         let inner_text = this.get_text_string(val);
-        let tile = document.createElement("div");
-        let classes = [
+        let tile = $("<div></div>").addClass([
             "tile",
-            `tile_position_${index}`,
             `tile_val_${Math.min(val, this.c.tile_style_limit)}`,
-            `tile_text_length_${inner_text.length}`,
-        ];
-        this.apply_classes(tile, classes);
+            `tile_text_length_${inner_text.length}`
+        ].join(" "));
+        tile.css("transform", this.get_tile_transform_string(index));
         if (typeof previous === "number") {
             // Make sure that the tile gets rendered in the previous position first
-            let previous_classes = copy(classes);
-            previous_classes[1] = `tile_position_${previous}`;
-            this.apply_classes(tile, previous_classes);
+            tile.css("transform", this.get_tile_transform_string(previous));
             window.requestAnimationFrame(() => {
-                this.apply_classes(tile, classes);
+                tile.css("transform", this.get_tile_transform_string(index));
             });
         }
         else if (previous) {
-            classes.push("tile_merged");
-            this.apply_classes(tile, classes);
+            tile.addClass("tile_merged");
             // Render the tiles that merged
             previous.forEach((merged_index) => {
                 this.add_tile(index, merged_index, val - 1);
             });
         }
         else {
-            classes.push("tile_new");
-            this.apply_classes(tile, classes);
+            tile.addClass("tile_new");
         }
-        let tile_inner = document.createElement("div");
-        tile_inner.classList.add("tile_inner");
-        let tile_text = document.createElement("div");
-        tile_text.classList.add("tile_text");
-        tile_text.textContent = inner_text;
-        tile_inner.appendChild(tile_text);
-        tile.appendChild(tile_inner);
-        $(".tile_container").appendChild(tile);
+        $(".tile_container").append(tile.append($("<div></div>").addClass("tile_inner").append($("<div></div>").addClass("tile_text").text(inner_text))));
     }
     clear_tiles() {
-        this.clear_container($(".tile_container"));
+        $(".tile_container").empty();
     }
     update_score() {
-        $(".score_value").textContent = this.total_score.stringify();
+        $(".score_value").text(this.total_score.stringify());
     }
     update_score_animation(score) {
-        this.clear_container($(".score_value"));
+        $(".score_value").empty();
         this.update_score();
         if (score.q.length) {
-            let addition = document.createElement("div");
-            addition.classList.add("score_addition");
-            addition.textContent = `+${score.stringify()}`;
-            $(".score_value").appendChild(addition);
+            $("<div></div>").addClass("score_addition")
+                .text(`+${score.stringify()}`)
+                .appendTo(".score_value");
         }
     }
     show_game_over() {
         this.game_over = true;
-        $(".game_message").classList.add("game_over_message");
-        $(".game_message").textContent = "Game over!";
+        $(".game_message").addClass("game_over_message").text("Game over!");
     }
     clear_game_over() {
         this.game_over = false;
-        $(".game_message").classList.remove("game_over_message");
+        $(".game_message").removeClass("game_over_message");
     }
     actuate(axis, opposite) {
         let move_tiles_result = this.move_tiles(axis, opposite);
@@ -667,13 +602,6 @@ class Game extends Core {
         }
         this.actuate(axis, opposite);
     }
-    window_onresize() {
-        let changed = this.init_client_related_consts();
-        if (changed) {
-            this.init_client_related_sizes();
-            this.refresh_grid();
-        }
-    }
     snake_fill_tiles() {
         this.snake_fill_grid();
         this.refresh_grid();
@@ -681,7 +609,7 @@ class Game extends Core {
 }
 var game = new Game();
 function new_size_game(shape, atom, view_dim) {
-    game.clear_container($(".grid_container"));
+    $(".grid_container").empty();
     game.clear_tiles();
     game.clear_game_over();
     game.delete_saving();
@@ -700,22 +628,19 @@ document.addEventListener("keypress", (event) => {
     event.preventDefault();
     game.keyboard_event(event.key);
 });
-window.onresize = function () {
-    game.window_onresize();
-};
-$(".withdraw_button").addEventListener("click", () => {
+$(".withdraw_button").click(() => {
     game.withdraw();
 });
-$(".auto_play_button").addEventListener("click", () => {
+$(".random_play_button").click(() => {
     alert("To be implemented...");
 });
-$(".auto_play_speed_button").addEventListener("click", () => {
+$(".random_play_speed_button").click(() => {
     alert("To be implemented...");
 });
-$(".new_game_button").addEventListener("click", () => {
+$(".new_game_button").click(() => {
     game.new_game();
 });
-$(".new_size_button").addEventListener("click", () => {
+$(".new_size_button").click(() => {
     let invalid_input_message = "Invalid input!";
     let shape_input = prompt("Type in the dimensions separated with commas\n"
         + "(Eeach value should be at least 2):", "4, 4, 2");
@@ -754,14 +679,12 @@ $(".new_size_button").addEventListener("click", () => {
     }
     new_size_game(shape, atom, 2);
 });
-$(".key_bindings_button").addEventListener("click", () => {
+$(".key_bindings_button").click(() => {
     alert("To be implemented...");
 });
 // TODO: clear all typescript compiling warnings
-// use css variables
-// css style -> var(...) (inside scss)
 // curtain
 // text paragraph
 // classes
 // disable withdraw button
-// modify README
+// zoom buttons (use sticky, place at the top-right corner)
