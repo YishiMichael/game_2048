@@ -7,6 +7,7 @@ $tile_gold_color: #edc22e;
 $tile_gold_glow_color: lighten($tile_gold_color, 15%);
 $text_color: #776E65;
 $bright_text_color: #f9f6f2;
+$button_background_color: #8f7a66;
 
 $tile_boarder_radius: 0.08em;
 
@@ -50,7 +51,7 @@ $new_tile_animation_speed: 200ms;
   user-select: none;
 }
 
-html, body {
+html {
   background: $body_background_color;
   color: $text_color;
   font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
@@ -62,12 +63,49 @@ body {
   margin: 0 10vw;
 }
 
+button {
+  border: 0;
+  background-color: transparent;
+  outline: none;
+  font: inherit;
+  color: inherit;
+}
+
+
+.curtain {
+  position: absolute;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  background-color: $body_background_color;
+}
+
+
+.zoom_buttons_container {
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 9;
+
+  button {
+    display: block;
+    cursor: pointer;
+    font-size: 24px;
+    margin: 6px;
+  }
+
+  button[disabled="disabled"] {
+    color: lighten($text_color, 30%);
+  }
+}
+
 
 .container {
   display: block;
+  position: relative;
   margin: 12vh auto;
-  // font-size: set;
-  // width: set;
 }
 
 
@@ -77,7 +115,7 @@ body {
     float: left;
     margin: 0;
     font-weight: bold;
-    font-size: 0.7em;
+    font-size: 3.6em;
     line-height: 1em;
   }
 
@@ -85,17 +123,20 @@ body {
     display: grid;
     justify-content: end;
     grid-template-columns: 8.8em 2em;
+    grid-template-rows: repeat(4, 2.0em);
     grid-gap: 0.5em 0.15em;
-    font-size: 0.2em;
+    font-size: 0.8em;
 
-    .button {
-      text-align: center;
+    button {
       cursor: pointer;
-      background: #8f7a66;
+      background: $button_background_color;
       color: $bright_text_color;
       font-weight: bold;
-      padding: 0.2em 0;
       border-radius: 0.2em;
+    }
+
+    button[disabled="disabled"] {
+      background: lighten($button_background_color, 30%);
     }
 
     .main_button {
@@ -116,7 +157,7 @@ body {
 
 
 .score_container {
-  display: inline-block;
+  display: block;
   position: relative;
   float: right;
   font-weight: bold;
@@ -125,11 +166,12 @@ body {
   background: $game_container_background;
   color: $bright_text_color;
   padding: 0.3em 0.4em;
-  font-size: 0.3em;
+  font-size: 1.2em;
   border-radius: 0.15em;
   margin: 1.2em 0;
 
-  .score_title {
+  &:before {
+    content: "Score";
     display: block;
     position: relative;
     text-transform: uppercase;
@@ -172,10 +214,13 @@ body {
 
 
 .game_container {
-  display: inline-block;
+  display: block;
   position: relative;
+  clear: both;
   z-index: 1;
-  width: inherit;
+  margin: 0 auto;
+  // font-size: set;
+  // width: set;
   // height: set;
   // border-radius: set;
 
@@ -341,5 +386,33 @@ body {
       @include animation(pop $new_tile_animation_speed ease $transition_speed);
       @include animation_fill_mode(backwards);
     }
+  }
+}
+
+.footnotes {
+  margin-top: 2em;
+
+  p {
+    margin-top: 0;
+    margin-bottom: 10px;
+    line-height: 1.65;
+  }
+  
+  a {
+    color: $text-color;
+    font-weight: bold;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  
+  strong.important {
+      text-transform: uppercase;
+  }
+  
+  hr {
+    border: none;
+    border-bottom: 1px solid lighten($text-color, 40%);
+    margin-top: 20px;
+    margin-bottom: 30px;
   }
 }

@@ -2,7 +2,7 @@
 
 *The web-based 2048 game*
 
-Simply run `index.html`.
+Simply run `index.html`. Play for fun!
 
 ## Features
 
@@ -12,7 +12,7 @@ Simply run `index.html`.
 
 ## Requirements
 
-This repository has no dependencies. Play for fun!
+This repository depends on `jquery` and `Font Awesome`.
 
 ## License
 

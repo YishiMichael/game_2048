@@ -12,19 +12,34 @@ function prod(array: number[]): number {
 }
 
 
+function randint(upper_bound: number): number {
+    return Math.floor(Math.random() * upper_bound)
+}
+
+
 function sample(samples: number[]): number {
-    return samples[Math.floor(Math.random() * samples.length)];
+    return samples[randint(samples.length)];
+}
+
+
+function array_equal(arr0: number[], arr1: number[]): boolean {
+    return arr0.toString() === arr1.toString()
+}
+
+
+function is_unique_str(str: string): boolean {
+    let str_copy: string = str;
+    while (str_copy.length) {
+        if (str_copy.slice(1).indexOf(str_copy.charAt(0)) !== -1) {
+            return false;
+        }
+        str_copy = str_copy.slice(1);
+    }
+    return true;
 }
 
 
 type PreviousType = number | number[] | null;
-
-
-interface NewGameInfo {
-    shape: number[],
-    atom: number,
-    view_dim: number,
-}
 
 
 interface GameState {
@@ -52,9 +67,12 @@ interface Constants {
     page_coverage: number,
     lowest_level_buff: number,
     buff_gap: number,
-    tile_size_px: number,
+    default_tile_size_px: number,
+    tile_size_intervals: number[],
+    tile_size_interpolations: number[],
     max_text_length_upper_limit: number,
-    tile_size_intervals_px: number[],
+    default_key_bindings: string,
+    default_auto_move_time: number,
     frame_width: number,
     full_width: number,
     full_height: number,
@@ -170,6 +188,34 @@ class Core {
         }
     }
 
+    renew(shape: number[], atom: number, view_dim: number): void {
+        if (!array_equal(shape, this.shape)) {
+            this.shape = shape;
+            this.dim = shape.length;
+            this.strides = this.get_strides();
+            this.reversed_strides = copy<number>(this.strides);
+            this.reversed_strides.reverse();
+            this.size = prod(shape);
+        }
+        if (atom !== this.atom) {
+            this.atom = atom;
+            this.powers = [];
+            for (let power = 0; power <= 2; ++power) {
+                this.powers.push(new GiantInteger(Math.pow(atom, power)));
+            }
+        }
+        this.view_dim = view_dim;
+        this.renew_self();
+    }
+
+    renew_self(): void {
+        this.grid = new Array(this.size).fill(0);
+        this.previous_grid = new Array(this.size).fill(0);
+        this.total_score = new GiantInteger();
+        this.previous_total_score = new GiantInteger();
+        this.game_over = false;
+    }
+
     get_strides(): number[] {
         let result: number[] = [];
         let temp_stride: number = 1;
@@ -197,14 +243,17 @@ class Core {
         return result;
     }
 
-    push_power() {
-        this.powers.push(this.powers[this.powers.length - 1].g_product(this.atom));
+    push_power(): void {
+        this.powers.push(
+            this.powers[this.powers.length - 1].g_product(this.atom)
+        );
     }
 
     simulate_move(axis: number, opposite: boolean): MoveTilesResult {
         let grid: number[] = this.grid;
         let ngrid: number[] = new Array(this.size).fill(0);
-        let link_data: Map<number, PreviousType> = new Map<number, PreviousType>();
+        let link_data: Map<number, PreviousType>
+            = new Map<number, PreviousType>();
         let score: GiantInteger = new GiantInteger();
         let abs_minor_step: number = this.strides[axis];
         let minor_step: number = opposite ? -abs_minor_step : abs_minor_step;
@@ -248,7 +297,8 @@ class Core {
                             temp_indices = [];
                         }
                     } else {
-                        temp_indices.forEach((temp_indice: number, i3: number) => {
+                        temp_indices.forEach(
+                            (temp_indice: number, i3: number) => {
                             exact_i3 = ngrid_p + i3 * minor_step;
                             ngrid[exact_i3] = hold;
                             link_data.set(exact_i3, temp_indice);
@@ -259,7 +309,8 @@ class Core {
                         temp_indices = [index];
                     }
                 }
-                temp_indices.forEach((temp_indice: number, i3: number) => {
+                temp_indices.forEach(
+                    (temp_indice: number, i3: number) => {
                     exact_i3 = ngrid_p + i3 * minor_step;
                     ngrid[exact_i3] = hold;
                     link_data.set(exact_i3, temp_indice);
@@ -278,7 +329,8 @@ class Core {
     }
 
     move_tiles(axis: number, opposite: boolean): MoveTilesResult {
-        let move_tiles_result: MoveTilesResult = this.simulate_move(axis, opposite);
+        let move_tiles_result: MoveTilesResult
+            = this.simulate_move(axis, opposite);
         if (move_tiles_result.changed) {
             this.previous_grid = this.grid;
             this.grid = move_tiles_result.new_grid;
@@ -303,7 +355,7 @@ class Core {
         return true;
     }
 
-    has_available_cells() {
+    has_available_cells(): boolean {
         for (let val of this.grid) {
             if (!val) {
                 return true;
@@ -312,10 +364,10 @@ class Core {
         return false;
     }
 
-    no_matches_available() {
+    no_matches_available(): boolean {
         for (let axis: number = 0; axis < this.dim; ++axis) {
-            for (let opposite: number = 0; opposite < 2; ++opposite) {
-                if (this.simulate_move(axis, Boolean(opposite)).changed) {
+            for (let opposite of [true, false]) {
+                if (this.simulate_move(axis, opposite).changed) {
                     return false;
                 }
             }
@@ -342,7 +394,8 @@ class Core {
     }
 
     generate_tile_randomly(): number {
-        let available_cell_indices: number[] = this.get_available_cell_indices();
+        let available_cell_indices: number[]
+            = this.get_available_cell_indices();
         if (!available_cell_indices.length) {
             return -1;
         }
@@ -361,7 +414,9 @@ class Core {
             this.grid[this.ravel(indices)] = val;
             axis = 0;
             indices[axis] += steps[axis];
-            while (indices[axis] === -1 || indices[axis] === this.shape[axis]) {
+            while (
+                indices[axis] === -1 || indices[axis] === this.shape[axis]
+            ) {
                 if (indices[axis] === -1) {
                     ++indices[axis];
                     steps[axis] = 1;
@@ -376,31 +431,25 @@ class Core {
         this.grid[this.ravel(indices)] = this.size - 1;
         this.grid[0] = 1;
     }
-
-    serialize(): GameState {
-        return {
-            shape: this.shape,
-            atom: this.atom,
-            view_dim: this.view_dim,
-            grid: this.grid,
-            total_score: this.total_score,
-            game_over: this.game_over,
-        }
-    }
 }
 
 
 class Recorder {
     game_state_key: string;
+    tile_size_key: string;
+    key_bindings_key: string;
     storage: Storage;
 
     constructor() {
         this.game_state_key = "game_state";
+        this.tile_size_key = "tile_size";
+        this.key_bindings_key = "key_bindings";
         this.storage = window.localStorage;
     }
 
     get_game_state(): object | null {
-        let state_json: string | null = this.storage.getItem(this.game_state_key);
+        let state_json: string | null
+            = this.storage.getItem(this.game_state_key);
         return state_json ? JSON.parse(state_json) : null;
     }
 
@@ -411,54 +460,95 @@ class Recorder {
     clear_game_state(): void {
         this.storage.removeItem(this.game_state_key);
     }
+
+    get_tile_size(): number | null {
+        let state_json: string | null
+            = this.storage.getItem(this.tile_size_key);
+        return state_json ? Number(state_json) : null;
+    }
+
+    set_tile_size(tile_size_px: number): void {
+        this.storage.setItem(this.tile_size_key, String(tile_size_px));
+    }
+
+    clear_tile_size(): void {
+        this.storage.removeItem(this.tile_size_key);
+    }
+
+    get_key_bindings(): string | null {
+        return this.storage.getItem(this.key_bindings_key);
+    }
+
+    set_key_bindings(key_bindings: string) {
+        this.storage.setItem(this.key_bindings_key, key_bindings);
+    }
+
+    clear_key_bindings(): void {
+        this.storage.removeItem(this.key_bindings_key);
+    }
 }
 
 
 class Game extends Core {
+    tile_size_px: number;
+    key_bindings: string;
+    auto_move_time: number;
+    auto_move_flag: boolean;
     c: Constants;
     recorder: Recorder;
 
-    constructor(new_game_info: NewGameInfo | null = null) {
-        let recorder: Recorder = new Recorder();
-        let is_new_game: boolean = true;
-        if (new_game_info) {
-            super(new_game_info.shape, new_game_info.atom, new_game_info.view_dim);
-        } else {
-            let recorded: GameState | null = recorder.get_game_state();
-            if (recorded) {
-                is_new_game = false;
-                super(recorded.shape, recorded.atom, recorded.view_dim);
-                this.grid = recorded.grid;
-                this.previous_grid = this.grid;
-                this.total_score = new GiantInteger(recorded.total_score.q);
-                this.previous_total_score = this.total_score.g_copy();
-                this.game_over = recorded.game_over;
-                this.refresh_grid();
-            } else {
-                super([4, 4], 2, 2);
-            }
-        }
-
-        this.c = {
+    constructor() {
+        let c: Constants = {
             tile_style_limit: 14,
             begin_tiles: 2,
             page_coverage: 0.8,
             lowest_level_buff: 0.15,  // Relative to cell side length
             buff_gap: 0.3,  // Relative to cell side length
-            tile_size_px: 100.0,
+            default_tile_size_px: 100,
+            tile_size_intervals: [
+                35, 40, 50, 60, 70, 80, 90, 100,
+                120, 140, 160, 180, 200, 225, 250
+            ],
+            tile_size_interpolations: [/*6*/ 50 /*7*/, 70 /*8*/, 90 /*9*/],
             max_text_length_upper_limit: 9,
-            tile_size_intervals_px: [35.0 /*6*/, 50.0 /*7*/, 70.0 /*8*/, 90.0 /*9*/],
+            default_key_bindings: "jlikfhtgadws",
+            default_auto_move_time: 1000,
             // To be computed
             frame_width: 0,
             full_width: 0,
             full_height: 0,
             max_text_length: 0,  // 6 <= max_text_length <= 9
         };
+        let recorder = new Recorder();
+
+        let is_new_game: boolean;
+        let recorded: GameState | null = recorder.get_game_state();
+        if (recorded) {
+            is_new_game = false;
+            super(recorded.shape, recorded.atom, recorded.view_dim);
+            this.grid = recorded.grid;
+            this.previous_grid = this.grid;
+            this.total_score = new GiantInteger(recorded.total_score.q);
+            this.previous_total_score = this.total_score.g_copy();
+            this.game_over = recorded.game_over;
+        } else {
+            is_new_game = true;
+            super([4, 4], 2, 2);
+        }
+
+        this.tile_size_px = recorder.get_tile_size() || c.default_tile_size_px;
+        this.key_bindings = recorder.get_key_bindings()
+            || c.default_key_bindings.slice(0, 2 * this.dim);
+        this.auto_move_time = c.default_auto_move_time;
+        this.auto_move_flag = false;
+        this.c = c;
         this.recorder = recorder;
         this.init(is_new_game);
     }
 
     init(is_new_game: boolean): void {
+        $(".curtain").hide();
+        this.refresh_grid();
         this.init_consts();
         this.init_positions();
         this.init_font_size();
@@ -471,6 +561,17 @@ class Game extends Core {
                 this.update_score_animation(this.total_score);
             });
         }
+        this.disable_btn(".withdraw_button");
+        this.toggle_zoom_button();
+        $(".text_atom").text(this.atom);
+    }
+
+    disable_btn(button_selector: string): void {
+        $(button_selector).attr("disabled", true);
+    }
+
+    active_btn(button_selector: string): void {
+        $(button_selector).attr("disabled", false);
     }
 
     get_cell_anchor_point(index: number): number[] {
@@ -496,7 +597,8 @@ class Game extends Core {
     get_full_grid_size(): number[] {
         let result: number[] = [];
         let added_width: number = 1.0 + this.c.frame_width;
-        this.get_cell_anchor_point(this.size - 1).forEach((axis_val: number) => {
+        this.get_cell_anchor_point(this.size - 1).forEach(
+            (axis_val: number) => {
             result.push(axis_val + added_width);
         });
         return result;
@@ -529,10 +631,12 @@ class Game extends Core {
                     return `${this.atom}^${val}`;
                 }
             }
-            let decimals: number = max_text_length - String(exponent).length - 3;
-            let coefficient: number = Math.round(Math.pow(10, logarithm - exponent + decimals));
-            let coefficient_str: string = String(coefficient);
-            return `${coefficient_str[0]}.${coefficient_str.slice(1)}E${exponent}`;
+            let decimals: number
+                = max_text_length - String(exponent).length - 3;
+            let coefficient: string = String(Math.round(
+                Math.pow(10, logarithm - exponent + decimals)
+            ));
+            return `${coefficient[0]}.${coefficient.slice(1)}E${exponent}`;
         } else {
             return String(power);
         }
@@ -546,18 +650,10 @@ class Game extends Core {
         this.c.full_height = full_grid_size[1];
     }
 
-    modify_tile_size_px(tile_size_px: number): void {
-        this.c.tile_size_px = tile_size_px;
-        this.init_font_size();
-        this.init_max_text_length();
-        this.refresh_grid();
-    }
-
     init_max_text_length(): void {
-        let tile_size_px: number = this.c.tile_size_px;
         let max_text_length: number = this.c.max_text_length_upper_limit;
-        this.c.tile_size_intervals_px.slice(1).forEach((interval: number) => {
-            if (tile_size_px < interval) {
+        this.c.tile_size_interpolations.forEach((interval: number) => {
+            if (this.tile_size_px < interval) {
                 --max_text_length;
             }
         });
@@ -565,9 +661,10 @@ class Game extends Core {
     }
 
     init_positions(): void {
-        $(".container").css("width", `${this.c.full_width}em`);
-        $(".game_container").css("height", `${this.c.full_height}em`);
-        $(".game_container").css("border-radius", `${this.c.frame_width}em`);
+        $(".game_container")
+            .css("width", `${this.c.full_width}em`)
+            .css("height", `${this.c.full_height}em`)
+            .css("border-radius", `${this.c.frame_width}em`);
 
         for (let index: number = 0; index < this.size; ++index) {
             $("<div></div>").addClass("grid_cell")
@@ -577,7 +674,7 @@ class Game extends Core {
     }
 
     init_font_size(): void {
-        $(".container").css("font-size", `${this.c.tile_size_px}px`);
+        $(".game_container").css("font-size", `${this.tile_size_px}px`);
     }
 
     add_start_tiles(): void {
@@ -589,7 +686,9 @@ class Game extends Core {
         this.previous_grid = this.grid;
     }
 
-    add_tile(index: number, previous: PreviousType = null, val: number = 0): void {
+    add_tile(
+        index: number, previous: PreviousType = null, val: number = 0
+    ): void {
         if (!val) {
             val = this.grid[index];
         }
@@ -603,7 +702,8 @@ class Game extends Core {
         tile.css("transform", this.get_tile_transform_string(index));
 
         if (typeof previous === "number") {
-            // Make sure that the tile gets rendered in the previous position first
+            // Make sure that the tile gets rendered
+            // in the previous position first
             tile.css("transform", this.get_tile_transform_string(previous));
             window.requestAnimationFrame(() => {
                 tile.css("transform", this.get_tile_transform_string(index));
@@ -656,23 +756,32 @@ class Game extends Core {
     }
 
     actuate(axis: number, opposite: boolean): boolean {
-        let move_tiles_result: MoveTilesResult = this.move_tiles(axis, opposite);
+        let move_tiles_result: MoveTilesResult
+            = this.move_tiles(axis, opposite);
         if (!move_tiles_result.changed) {
             return false;
         }
 
         window.requestAnimationFrame(() => {
             this.clear_tiles();
-            move_tiles_result.link_data.forEach((previous: PreviousType, index: number) => {
+            move_tiles_result.link_data.forEach(
+                (previous: PreviousType, index: number) => {
                 this.add_tile(index, previous);
             });
 
             let score: GiantInteger = move_tiles_result.score;
             this.update_score_animation(score);
 
+            this.active_btn(".withdraw_button");
+
             if (move_tiles_result.game_over) {
                 this.show_game_over();
-                this.delete_saving();
+                if (this.auto_move_flag) {
+                    this.toggle_auto_move();
+                }
+                this.disable_btn(".random_play_button");
+                this.disable_btn(".random_play_speed_button");
+                this.delete_game_saving();
             } else {
                 this.save_game();
             }
@@ -692,45 +801,152 @@ class Game extends Core {
         });
     }
 
-    new_game(): void {
-        this.delete_saving();
-        for (let index: number = 0; index < this.size; ++index) {
-            this.grid[index] = 0;
+    retreat(): void {
+        if (this.auto_move_flag) {
+            this.toggle_auto_move();
         }
-        this.total_score = new GiantInteger();
-        this.previous_total_score = new GiantInteger();
         this.clear_game_over();
-        this.add_start_tiles();
         this.refresh_grid();
+        this.disable_btn(".withdraw_button");
+        this.active_btn(".random_play_button");
+        this.active_btn(".random_play_speed_button");
     }
 
     withdraw(): void {
         this.grid = this.previous_grid;
         this.total_score = this.previous_total_score.g_copy();
-        this.clear_game_over();
         this.save_game();
-        this.refresh_grid();
+        this.retreat();
+    }
+
+    new_game(): void {
+        this.delete_game_saving();
+        this.renew_self();
+        this.add_start_tiles();
+        this.retreat();
+    }
+
+    new_size_game(shape: number[], atom: number, view_dim: number): void {
+        $(".grid_container").empty();
+        this.clear_tiles();
+        this.delete_game_saving();
+        this.renew(shape, atom, view_dim);
+        this.init(true);
+        this.key_bindings = this.c.default_key_bindings.slice(0, 2 * this.dim);
+        this.save_key_bindings();
+        this.retreat();
+    }
+
+    serialize(): GameState {
+        return {
+            shape: this.shape,
+            atom: this.atom,
+            view_dim: this.view_dim,
+            grid: this.grid,
+            total_score: this.total_score,
+            game_over: this.game_over,
+        }
     }
 
     save_game(): void {
         this.recorder.set_game_state(this.serialize());
     }
 
-    delete_saving(): void {
+    delete_game_saving(): void {
         this.recorder.clear_game_state();
+    }
+
+    save_tile_size(): void {
+        this.recorder.set_tile_size(this.tile_size_px);
+    }
+
+    save_key_bindings(): void {
+        this.recorder.set_key_bindings(this.key_bindings);
     }
 
     keyboard_event(event_key: string): void {
         if (this.game_over) {
             return;
         }
-        let choice: number = "lkhgdsjiftaw".indexOf(event_key);
-        let axis: number = choice % 6;
-        let opposite: boolean = choice < 6;
-        if (choice < 0 || axis >= this.dim) {
+        let direction: number = this.key_bindings.indexOf(event_key);
+        if (direction === -1) {
             return;
         }
+        let axis: number = Math.floor(direction / 2);
+        let opposite: boolean = Boolean(direction % 2);
         this.actuate(axis, opposite);
+    }
+
+    modify_key_bindings(new_key_bindings: string): void {
+        this.key_bindings = new_key_bindings;
+        this.save_key_bindings();
+    }
+
+    auto_move(): void {
+        if (!this.auto_move_flag) {
+            return;
+        }
+        let axis: number = randint(this.dim);
+        let opposite: boolean = Boolean(randint(2));
+        if (!this.simulate_move(axis, opposite).changed) {
+            this.auto_move();
+        } else {
+            this.actuate(axis, opposite);
+            setTimeout("game.auto_move()", this.auto_move_time);
+        }
+    }
+
+    toggle_auto_move(): void {
+        if (!this.auto_move_flag) {
+            this.auto_move_flag = true;
+            $(".random_play_button").text("Stop");
+            this.auto_move();
+        } else {
+            this.auto_move_flag = false;
+            $(".random_play_button").text("Random Play");
+        }
+    }
+
+    modify_auto_move_time(new_auto_move_time: number): void {
+        this.auto_move_time = new_auto_move_time;
+        if (!this.auto_move_flag) {
+            this.toggle_auto_move();
+        }
+    }
+
+    modify_tile_size_px(tile_size_px: number): void {
+        this.tile_size_px = tile_size_px;
+        this.init_font_size();
+        this.init_max_text_length();
+        this.save_tile_size();
+        this.refresh_grid();
+    }
+
+    toggle_zoom_button(): void {
+        if (this.tile_size_px === this.c.tile_size_intervals.slice(-1)[0]) {
+            this.disable_btn(".zoom-in_button");
+        } else {
+            this.active_btn(".zoom-in_button");
+        }
+        if (this.tile_size_px === this.c.tile_size_intervals[0]) {
+            this.disable_btn(".zoom-out_button");
+        } else {
+            this.active_btn(".zoom-out_button");
+        }
+    }
+
+    zoom_in(): void {
+        this.modify_tile_size_px(this.c.tile_size_intervals[
+            this.c.tile_size_intervals.indexOf(this.tile_size_px) + 1
+        ]);
+        this.toggle_zoom_button();
+    }
+
+    zoom_out(): void {
+        this.modify_tile_size_px(this.c.tile_size_intervals[
+            this.c.tile_size_intervals.indexOf(this.tile_size_px) - 1
+        ]);
+        this.toggle_zoom_button();
     }
 
     snake_fill_tiles(): void {
@@ -740,25 +956,12 @@ class Game extends Core {
 }
 
 
-var game = new Game();
+var game: Game;
 
-function new_size_game(shape: number[], atom: number, view_dim: number): void {
-    $(".grid_container").empty();
-    game.clear_tiles();
-    game.clear_game_over();
-    game.delete_saving();
-    game = new Game({shape: shape, atom: atom, view_dim: view_dim});
-}
-
-function check_validity(test_string: string, valid_chars: string): string {
-    let result_string: string = test_string.replace(/\s*/g, "");  // Ignore spaces
-    for (let char of result_string) {
-        if (valid_chars.indexOf(char) === -1) {
-            return "";
-        }
-    }
-    return result_string;
-}
+// Wait till the browser is ready to render the game (avoids glitches)
+window.requestAnimationFrame(() => {
+    game = new Game();
+});
 
 
 document.addEventListener("keypress", (event: Event) => {
@@ -771,11 +974,27 @@ $(".withdraw_button").click(() => {
 });
 
 $(".random_play_button").click(() => {
-    alert("To be implemented...");
+    game.toggle_auto_move();
 });
 
 $(".random_play_speed_button").click(() => {
-    alert("To be implemented...");
+    let invalid_input_message: string = "Invalid input!";
+
+    let auto_move_time_input: string | null = prompt(
+        "Type in the speed of random playing\n" +
+        "(unit: ms / move):",
+        String(game.auto_move_time)
+    );
+    if (!auto_move_time_input) {
+        return;
+    }
+    if (!/^(\d*|\d*\.\d*)$/.test(auto_move_time_input)) {
+        alert(invalid_input_message);
+        return;
+    }
+    let auto_move_time: number = Number(auto_move_time_input);
+
+    game.modify_auto_move_time(auto_move_time);
 });
 
 $(".new_game_button").click(() => {
@@ -785,13 +1004,16 @@ $(".new_game_button").click(() => {
 $(".new_size_button").click(() => {
     let invalid_input_message: string = "Invalid input!";
 
-    let shape_input: string | null = prompt("Type in the dimensions separated with commas\n"
-        + "(Eeach value should be at least 2):", "4, 4, 2");
+    let shape_input: string | null = prompt(
+        "Type in the dimensions separated with commas\n" +
+        "(each value should be at least 2):",
+        "4, 4, 2"
+    );
     if (!shape_input) {
         return;
     }
-    shape_input = check_validity(shape_input, "0123456789,");
-    if (!shape_input.length) {
+    shape_input = shape_input.replace(/\s*/g, "");
+    if (!/^[\d,]*$/.test(shape_input)) {
         alert(invalid_input_message);
         return;
     }
@@ -807,31 +1029,87 @@ $(".new_size_button").click(() => {
         shape.push(dimension_size);
     }
 
-    let atom_input: string | null = prompt("Type in the number of tiles to merge (at least 2):", "2");
-    if (!atom_input) {
-        return;
-    }
-    atom_input = check_validity(atom_input, "0123456789");
-    if (!atom_input.length) {
-        alert(invalid_input_message);
-        return;
-    }
-    let atom: number = Number(atom_input);
-    if (atom < 2) {
-        alert(invalid_input_message);
-        return;
+    let biggest_dim_size: number = Math.max(...shape);
+    let atom;
+    if (biggest_dim_size === 2) {
+        atom = 2;
+    } else {
+        let atom_input: string | null = prompt(
+            "Type in the number of tiles to merge\n" +
+            `(at least 2, at most ${biggest_dim_size}):`,
+            "2"
+        );
+        if (!atom_input) {
+            return;
+        }
+        if (!/^\d*$/.test(atom_input)) {
+            alert(invalid_input_message);
+            return;
+        }
+        atom = Number(atom_input);
+        if (atom < 2 || atom > biggest_dim_size) {
+            alert(invalid_input_message);
+            return;
+        }
     }
 
-    new_size_game(shape, atom, 2);
+    game.new_size_game(shape, atom, 2);
 });
 
 $(".key_bindings_button").click(() => {
-    alert("To be implemented...");
+    let invalid_input_message: string = "Invalid input!";
+
+    let padded_key_bindings: string
+        = game.key_bindings.padEnd(game.dim * 2, "?");
+    let original_character_pairs: string[] = [];
+    for (let axis: number = 0; axis < game.dim; ++axis) {
+        original_character_pairs.push(padded_key_bindings.substr(2 * axis, 2));
+    }
+
+    let key_bindings_input: string | null = prompt(
+        "Each pair of lowercase characters separated with commas\n" +
+        "controls a pair of opposite directions of a specified axis.\n" +
+        "Make sure all the characters are unique,\n" +
+        "and the number of pairs fits the number of axes:",
+        original_character_pairs.join(", ")
+    );
+    if (!key_bindings_input) {
+        return;
+    }
+    key_bindings_input = key_bindings_input.replace(/\s*/g, "");
+    if (!/^[a-z,]*$/.test(key_bindings_input)) {
+        alert(invalid_input_message);
+        return;
+    }
+    let separated_key_bindings_input: string[] = key_bindings_input.split(",");
+    if (separated_key_bindings_input.length !== game.dim) {
+        alert(invalid_input_message);
+        return;
+    }
+    for (let character_pair of separated_key_bindings_input) {
+        if (character_pair.length !== 2) {
+            alert(invalid_input_message);
+            return;
+        }
+    }
+    let key_bindings: string = separated_key_bindings_input.join("");
+    if (!is_unique_str(key_bindings)) {
+        alert(invalid_input_message);
+        return;
+    }
+
+    game.modify_key_bindings(key_bindings);
+});
+
+$(".zoom-in_button").click(() => {
+    game.zoom_in();
+});
+
+$(".zoom-out_button").click(() => {
+    game.zoom_out();
 });
 
 // TODO: clear all typescript compiling warnings
-// curtain
-// text paragraph
 // classes
-// disable withdraw button
-// zoom buttons (use sticky, place at the top-right corner)
+// fancy font
+// mobile friendly

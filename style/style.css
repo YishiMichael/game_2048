@@ -5,7 +5,7 @@
   user-select: none;
 }
 
-html, body {
+html {
   background: #faf8ef;
   color: #776E65;
   font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
@@ -16,8 +16,43 @@ body {
   margin: 0 10vw;
 }
 
+button {
+  border: 0;
+  background-color: transparent;
+  outline: none;
+  font: inherit;
+  color: inherit;
+}
+
+.curtain {
+  position: absolute;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  background-color: #faf8ef;
+}
+
+.zoom_buttons_container {
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 9;
+}
+.zoom_buttons_container button {
+  display: block;
+  cursor: pointer;
+  font-size: 24px;
+  margin: 6px;
+}
+.zoom_buttons_container button[disabled=disabled] {
+  color: #c0bbb5;
+}
+
 .container {
   display: block;
+  position: relative;
   margin: 12vh auto;
 }
 
@@ -26,24 +61,26 @@ body {
   float: left;
   margin: 0;
   font-weight: bold;
-  font-size: 0.7em;
+  font-size: 3.6em;
   line-height: 1em;
 }
 .heading .button_grid {
   display: grid;
   justify-content: end;
   grid-template-columns: 8.8em 2em;
+  grid-template-rows: repeat(4, 2em);
   grid-gap: 0.5em 0.15em;
-  font-size: 0.2em;
+  font-size: 0.8em;
 }
-.heading .button_grid .button {
-  text-align: center;
+.heading .button_grid button {
   cursor: pointer;
   background: #8f7a66;
   color: #f9f6f2;
   font-weight: bold;
-  padding: 0.2em 0;
   border-radius: 0.2em;
+}
+.heading .button_grid button[disabled=disabled] {
+  background: #d0c7be;
 }
 .heading .button_grid .main_button {
   grid-column-start: span 2;
@@ -58,7 +95,7 @@ body {
 }
 
 .score_container {
-  display: inline-block;
+  display: block;
   position: relative;
   float: right;
   font-weight: bold;
@@ -66,11 +103,12 @@ body {
   background: #bbada0;
   color: #f9f6f2;
   padding: 0.3em 0.4em;
-  font-size: 0.3em;
+  font-size: 1.2em;
   border-radius: 0.15em;
   margin: 1.2em 0;
 }
-.score_container .score_title {
+.score_container:before {
+  content: "Score";
   display: block;
   position: relative;
   text-transform: uppercase;
@@ -112,10 +150,11 @@ body {
 }
 
 .game_container {
-  display: inline-block;
+  display: block;
   position: relative;
+  clear: both;
   z-index: 1;
-  width: inherit;
+  margin: 0 auto;
 }
 .game_container .game_message {
   display: none;
@@ -340,6 +379,30 @@ body {
     -ms-transform: scale(1);
     transform: scale(1);
   }
+}
+
+.footnotes {
+  margin-top: 2em;
+}
+.footnotes p {
+  margin-top: 0;
+  margin-bottom: 10px;
+  line-height: 1.65;
+}
+.footnotes a {
+  color: #776E65;
+  font-weight: bold;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.footnotes strong.important {
+  text-transform: uppercase;
+}
+.footnotes hr {
+  border: none;
+  border-bottom: 1px solid #d8d4d0;
+  margin-top: 20px;
+  margin-bottom: 30px;
 }
 
 /*# sourceMappingURL=style.css.map */

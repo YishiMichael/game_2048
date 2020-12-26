@@ -3,34 +3,52 @@
 <head>
   <meta charset="utf-8">
   <title>2048</title>
+  <link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
   <link href="style/style.css" rel="stylesheet" type="text/css">
   <link rel="shortcut icon" href="favicon.ico">
 </head>
 <body>
+  <div class="curtain"></div>
+  <div class="zoom_buttons_container">
+    <button class="zoom-in_button">
+      <i class="fa fa-search-plus"></i>
+    </button>
+    <button class="zoom-out_button">
+      <i class="fa fa-search-minus"></i>
+    </button>
+  </div>
   <div class="container">
     <div class="heading">
       <h1 class="title">2048</h1>
       <div class="button_grid">
-        <div class="button main_button withdraw_button">Withdraw</div>
-        <div class="button left_button random_play_button">Random Play</div>
-        <div class="button right_button random_play_speed_button">...</div>
-        <div class="button left_button new_game_button">New Game</div>
-        <div class="button right_button new_size_button">...</div>
-        <div class="button main_button key_bindings_button">Key Bindings</div>
+        <button class="main_button withdraw_button">Withdraw</button>
+        <button class="left_button random_play_button">Random Play</button>
+        <button class="right_button random_play_speed_button">...</button>
+        <button class="left_button new_game_button">New Game</button>
+        <button class="right_button new_size_button">...</button>
+        <button class="main_button key_bindings_button">Key Bindings</button>
       </div>
     </div>
     <div class="score_container">
-      <div class="score_title">Score</div>
-      <div class="score_value">
-      </div>
+      <div class="score_value"></div>
     </div>
     <div class="game_container">
-      <div class="game_message">
-      </div>
-      <div class="grid_container">
-      </div>
-      <div class="tile_container">
-      </div>
+      <div class="game_message"></div>
+      <div class="grid_container"></div>
+      <div class="tile_container"></div>
+    </div>
+    <div class="footnotes">
+      <p class="game-explanation">
+        <strong class="important">How to play:</strong> Use <a class="key_bindings_button">keys that binded</a> to move the tiles. When <strong class="text_atom">2</strong> tiles with the same number touch, they <strong>merge into one</strong>!
+      </p>
+      <hr>
+      <p>
+        <strong class="important">Note:</strong> This site is <font color="red"><strong>not</strong></font> the official version of 2048. You can play the official version on <a href="http://gabrielecirulli.github.io/2048/" target="blank">gabrielecirulli.github.io/2048/</a>.
+      </p>
+      <hr>
+      <p>
+        The <a href="https://github.com/YishiMichael/game_2048" target="blank">source code</a> is released under MIT license, created by <a href="https://github.com/YishiMichael" target="blank">YishiMichael</a>.
+      </p>
     </div>
   </div>
   <script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js"></script>
